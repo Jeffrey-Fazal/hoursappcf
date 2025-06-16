@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// Helper to get today's date in YYYY-MM-DD format
+// Helper to get today's date in<x_bin_411>-MM-DD format
 const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -9,7 +9,7 @@ const getTodayDate = () => {
     return `${year}-${month}-${day}`;
 };
 
-// Helper to get date one year from today in YYYY-MM-DD format
+// Helper to get date one year from today in<x_bin_411>-MM-DD format
 const getOneYearFromToday = () => {
     const today = new Date();
     const nextYear = new Date(today);
@@ -31,11 +31,10 @@ const roundUpToTwoDecimals = (num) => {
 // Main App component for the hours forecasting application
 const App = () => {
     // State variables for inputs
-    const [fromDate, setFromDate] = useState(getTodayDate()); // Default from date is today
-    const [toDate, setToDate] = useState(getOneYearFromToday()); // Default to date is one year from today
-    const [recurringType, setRecurringType] = useState('Weekly'); // Default recurring type
+    const [fromDate, setFromDate] = useState(getTodayDate());
+    const [toDate, setToDate] = useState(getOneYearFromToday());
+    const [recurringType, setRecurringType] = useState('Weekly');
 
-    // MODIFIED: State for weekly day selection and hours. Hours can be a string ('') or number.
     const [weeklyDays, setWeeklyDays] = useState({
         Monday: { selected: false, hours: '' },
         Tuesday: { selected: false, hours: '' },
@@ -46,58 +45,38 @@ const App = () => {
         Sunday: { selected: false, hours: '' },
     });
 
-    // Default Australian public holidays for 2025 (YYYY-MM-DD format)
     const defaultQueenslandPublicHolidays = [
-        '2025-01-01', // New Year's Day
-        '2025-01-27', // Australia Day (Observed)
-        '2025-04-18', // Good Friday
-        '2025-04-19', // The day after Good Friday
-        '2025-04-20', // Easter Sunday
-        '2025-04-21', // Easter Monday
-        '2025-04-25', // ANZAC Day
-        '2025-05-05', // Labour Day
-        '2025-08-13', // Royal Queensland Show (Brisbane area only)
-        '2025-10-06', // King’s Birthday
-        '2025-12-24', // Christmas Eve (6pm to midnight - treated as full day for calculation)
-        '2025-12-25', // Christmas Day
-        '2025-12-26', // Boxing Day
-    ].join(', '); // Join them into a comma-separated string for the textarea
+        '2025-01-01', '2025-01-27', '2025-04-18', '2025-04-19', '2025-04-20',
+        '2025-04-21', '2025-04-25', '2025-05-05', '2025-08-13', '2025-10-06',
+        '2025-12-24', '2025-12-25', '2025-12-26'
+    ].join(', ');
 
-    // State for public holiday handling
-    const [includePublicHolidays, setIncludePublicHolidays] = useState(true); // Default to include
-    // State for the editable public holidays input
+    const [includePublicHolidays, setIncludePublicHolidays] = useState(true);
     const [publicHolidaysInput, setPublicHolidaysInput] = useState(defaultQueenslandPublicHolidays);
 
-    // MODIFIED: State for rates can now be a string ('') or number for better UX
     const [weekdayRate, setWeekdayRate] = useState('');
     const [saturdayRate, setSaturdayRate] = useState('');
     const [sundayRate, setSundayRate] = useState('');
     const [publicHolidayRate, setPublicHolidayRate] = useState('');
 
-    // State variable for budget mode and value
-    const [budgetMode, setBudgetMode] = useState('noBudget'); // Default to 'noBudget'
-    const [budget, setBudget] = useState(''); // MODIFIED: Set initial budget to empty string
+    const [budgetMode, setBudgetMode] = useState('noBudget');
+    const [budget, setBudget] = useState('');
 
-    // State for the calculated total projected hours and breakdown
     const [totalHours, setTotalHours] = useState(0);
     const [weekdayHours, setWeekdayHours] = useState(0);
     const [saturdayHours, setSaturdayHours] = useState(0);
     const [sundayHours, setSundayHours] = useState(0);
     const [publicHolidayHours, setPublicHolidayHours] = useState(0);
 
-    // State for the calculated pay and breakdown
     const [totalPay, setTotalPay] = useState(0);
     const [weekdayPay, setWeekdayPay] = useState(0);
     const [saturdayPay, setSaturdayPay] = useState(0);
     const [sundayPay, setSundayPay] = useState(0);
     const [publicHolidayPay, setPublicHolidayPay] = useState(0);
 
-    const [error, setError] = useState(''); // State for error messages
-
-    // State for suggested daily hours when budget is locked
+    const [error, setError] = useState('');
     const [suggestedDailyHours, setSuggestedDailyHours] = useState({});
 
-    // State for period breakdown (day counts by type)
     const [calculatedTotalDays, setCalculatedTotalDays] = useState(0);
     const [calculatedTotalWeekdays, setCalculatedTotalWeekdays] = useState(0);
     const [calculatedTotalSaturdays, setCalculatedTotalSaturdays] = useState(0);
@@ -106,11 +85,31 @@ const App = () => {
     const [calculatedFullWeeks, setCalculatedFullWeeks] = useState(0);
     const [calculatedFullFortnights, setCalculatedFullFortnights] = useState(0);
     const [calculatedFullMonths, setCalculatedFullMonths] = useState(0);
+
+    // State for saved quotes and their description
+    const [quoteDescription, setQuoteDescription] = useState('');
+    const [savedQuotes, setSavedQuotes] = useState(() => {
+        // Load saved quotes from local storage on initial render
+        try {
+            const localData = localStorage.getItem('savedQuotes');
+            return localData ? JSON.parse(localData) : [];
+        } catch (error) {
+            console.error("Could not parse saved quotes from local storage:", error);
+            return [];
+        }
+    });
+
+    // Effect to save quotes to local storage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem('savedQuotes', JSON.stringify(savedQuotes));
+        } catch (error) {
+            console.error("Could not save quotes to local storage:", error);
+        }
+    }, [savedQuotes]);
     
-    // NEW: Helper to select input content on focus for better UX
     const handleFocus = (event) => event.target.select();
 
-    // Function to handle changes in weekly day selection checkboxes
     const handleWeeklyDayChange = (day) => {
         setWeeklyDays(prevDays => ({
             ...prevDays,
@@ -118,7 +117,6 @@ const App = () => {
         }));
     };
 
-    // MODIFIED: Allows empty string for better UX, validates non-empty values
     const handleWeeklyHoursChange = (day, value) => {
         const numValue = parseFloat(value);
         if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 24)) {
@@ -132,7 +130,6 @@ const App = () => {
         }
     };
 
-    // MODIFIED: Generic handler for rate and budget inputs for better UX
     const handleValueChange = (setter, value) => {
         const numValue = parseFloat(value);
         if (value === '' || (!isNaN(numValue) && numValue >= 0)) {
@@ -143,7 +140,6 @@ const App = () => {
         }
     };
 
-    // Function to apply suggested hours to the main weeklyDays state
     const applySuggestedHours = () => {
         if (Object.keys(suggestedDailyHours).length > 0) {
             setWeeklyDays(prevDays => {
@@ -161,8 +157,6 @@ const App = () => {
         }
     };
 
-
-    // Function to set all hourly rates to the same value (weekday rate)
     const setAllRatesSame = () => {
         const rateToApply = weekdayRate;
         setSaturdayRate(rateToApply);
@@ -170,7 +164,7 @@ const App = () => {
         setPublicHolidayRate(rateToApply);
     };
 
-    // useEffect hook to recalculate all totals and breakdown whenever inputs change
+    // Main calculation useEffect
     useEffect(() => {
         const calculateAllTotals = () => {
             const start = new Date(fromDate + 'T00:00:00');
@@ -183,7 +177,6 @@ const App = () => {
                 setError('');
             }
             
-            // MODIFIED: Parse all state values here for calculation, with fallback to 0
             const numWeekdayRate = parseFloat(weekdayRate) || 0;
             const numSaturdayRate = parseFloat(saturdayRate) || 0;
             const numSundayRate = parseFloat(sundayRate) || 0;
@@ -203,7 +196,6 @@ const App = () => {
                 const currentDateString = d.toISOString().split('T')[0];
                 const isHoliday = holidaySet.has(currentDateString);
                 
-                // MODIFIED: Parse hours here with a fallback to 0 for calculations
                 const hoursToday = parseFloat(weeklyDays[dayName].hours) || 0;
                 const isDaySelectedInPattern = weeklyDays[dayName].selected;
                 let shouldCountThisDayInForecast = false;
@@ -291,9 +283,38 @@ const App = () => {
             }
             setSuggestedDailyHours(newSuggestedDailyHours);
         };
-
         calculateAllTotals();
     }, [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, weekdayRate, saturdayRate, sundayRate, publicHolidayRate, budget, budgetMode]);
+
+    // Function to add the current calculation as a new quote
+    const handleAddQuote = () => {
+        if (!quoteDescription.trim()) {
+            setError('Please enter a description for the quote.');
+            return;
+        }
+
+        const newQuote = {
+            id: crypto.randomUUID(),
+            description: quoteDescription.trim(),
+            totalPay,
+            totalHours,
+            details: { // Snapshot of the data that created the quote
+                fromDate, toDate, recurringType,
+                weekdayRate, saturdayRate, sundayRate, publicHolidayRate,
+                weekdayHours, saturdayHours, sundayHours, publicHolidayHours,
+                weekdayPay, saturdayPay, sundayPay, publicHolidayPay
+            }
+        };
+
+        setSavedQuotes(prevQuotes => [...prevQuotes, newQuote]);
+        setQuoteDescription(''); // Clear input after saving
+        setError(''); // Clear any previous error
+    };
+
+    // Function to delete a quote by its ID
+    const handleDeleteQuote = (idToDelete) => {
+        setSavedQuotes(prevQuotes => prevQuotes.filter(quote => quote.id !== idToDelete));
+    };
 
     const formatNumber = (num) => {
         if (typeof num !== 'number' || isNaN(num)) {
@@ -327,7 +348,7 @@ const App = () => {
                     </div>
                 )}
 
-                {/* Date Inputs */}
+                {/* All input sections are unchanged... */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
                     <div>
                         <label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">From Date:</label>
@@ -339,7 +360,6 @@ const App = () => {
                     </div>
                 </div>
 
-                {/* Recurring Type Selector */}
                 <div className="p-4 border border-purple-200 rounded-lg bg-purple-50">
                     <label htmlFor="recurringType" className="block text-lg font-semibold text-gray-700 mb-2">Recurring Type:</label>
                     <select id="recurringType" value={recurringType} onChange={(e) => setRecurringType(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base bg-white">
@@ -354,7 +374,6 @@ const App = () => {
                     </p>
                 </div>
 
-                {/* Applicable Days & Hours per Day (always visible) */}
                 <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50 animate-fade-in">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Applicable Days & Hours per Day:</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -363,16 +382,7 @@ const App = () => {
                                 <div className="flex items-center space-x-2">
                                     <input type="checkbox" id={`day-${day}`} checked={selected} onChange={() => handleWeeklyDayChange(day)} className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500" />
                                     <label htmlFor={`day-${day}`} className="text-sm font-medium text-gray-700">{day}:</label>
-                                    <input
-                                        type="number"
-                                        value={hours}
-                                        onChange={(e) => handleWeeklyHoursChange(day, e.target.value)}
-                                        onFocus={handleFocus}
-                                        className="w-24 p-2 border border-gray-300 rounded-md text-sm text-center focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
-                                        min="0"
-                                        max="24"
-                                        placeholder="0"
-                                    />
+                                    <input type="number" value={hours} onChange={(e) => handleWeeklyHoursChange(day, e.target.value)} onFocus={handleFocus} className="w-24 p-2 border border-gray-300 rounded-md text-sm text-center focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out" min="0" max="24" placeholder="0" />
                                 </div>
                                 {budgetMode === 'lock' && numericBudget > 0 && Object.keys(suggestedDailyHours).length > 0 && suggestedDailyHours[day]?.hours !== undefined && suggestedDailyHours[day].selected && (
                                     <div className="mt-1 text-green-600 font-semibold text-sm text-center">
@@ -391,7 +401,6 @@ const App = () => {
                     )}
                 </div>
 
-                {/* Budget Information */}
                 <div className="p-4 border border-teal-200 rounded-lg bg-teal-50 animate-fade-in">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Budget Information:</h3>
                     <div className="flex space-x-4 mb-4">
@@ -407,245 +416,138 @@ const App = () => {
                             <span className="ml-2 text-gray-700">No Budget</span>
                         </label>
                     </div>
-
                     {budgetMode === 'lock' && (
                         <div className="animate-fade-in">
                             <label htmlFor="budget" className="block text-sm font-semibold text-gray-700 mb-1">Your Total Budget ($):</label>
-                            <input
-                                type="number"
-                                id="budget"
-                                value={budget}
-                                onChange={(e) => handleValueChange(setBudget, e.target.value)}
-                                onFocus={handleFocus}
-                                className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base"
-                                min="0"
-                                placeholder="0.00"
-                            />
+                            <input type="number" id="budget" value={budget} onChange={(e) => handleValueChange(setBudget, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base" min="0" placeholder="0.00" />
                             <div className="mt-4 text-gray-800">
-                                {totalPay === 0 && numericBudget > 0 ? (
-                                    <p className="text-red-600 font-bold">Please set your hourly rates and applicable daily hours to calculate against the budget.</p>
-                                ) : numericBudget > 0 && totalPay > 0 ? (
-                                    <>
-                                        <p className="text-lg font-semibold">
-                                            Budget vs. Projected: {' '}
-                                            {totalPay > numericBudget ? (
-                                                <span className="text-red-600 font-bold">OVER by ${formatNumber(totalPay - numericBudget)}</span>
-                                            ) : totalPay < numericBudget ? (
-                                                <span className="text-green-600 font-bold">UNDER by ${formatNumber(numericBudget - totalPay)}</span>
-                                            ) : (
-                                                <span className="text-blue-600 font-bold">EXACTLY ON BUDGET</span>
-                                            )}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <p className="text-lg font-semibold">
-                                        Enter a budget to see comparison and suggestions.
+                                {totalPay === 0 && numericBudget > 0 ? (<p className="text-red-600 font-bold">Please set rates and hours to calculate.</p>) : numericBudget > 0 && totalPay > 0 ? (
+                                    <p className="text-lg font-semibold">Budget vs. Projected: {' '}
+                                        {totalPay > numericBudget ? (<span className="text-red-600 font-bold">OVER by ${formatNumber(totalPay - numericBudget)}</span>) : totalPay < numericBudget ? (<span className="text-green-600 font-bold">UNDER by ${formatNumber(numericBudget - totalPay)}</span>) : (<span className="text-blue-600 font-bold">ON BUDGET</span>)}
                                     </p>
-                                )}
+                                ) : (<p className="text-lg font-semibold">Enter a budget to see comparison.</p>)}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Hourly Rates Input */}
                 <div className="p-4 border border-green-200 rounded-lg bg-green-50 animate-fade-in">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Hourly Rates:</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <label htmlFor="weekdayRate" className="block text-sm font-semibold text-gray-700 mb-1">Weekday Rate:</label>
-                            <input type="number" id="weekdayRate" value={weekdayRate} onChange={(e) => handleValueChange(setWeekdayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base" min="0" placeholder="0.00" />
-                        </div>
-                        <div>
-                            <label htmlFor="saturdayRate" className="block text-sm font-semibold text-gray-700 mb-1">Saturday Rate:</label>
-                            <input type="number" id="saturdayRate" value={saturdayRate} onChange={(e) => handleValueChange(setSaturdayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base" min="0" placeholder="0.00" />
-                        </div>
-                        <div>
-                            <label htmlFor="sundayRate" className="block text-sm font-semibold text-gray-700 mb-1">Sunday Rate:</label>
-                            <input type="number" id="sundayRate" value={sundayRate} onChange={(e) => handleValueChange(setSundayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base" min="0" placeholder="0.00" />
-                        </div>
+                        <div><label htmlFor="weekdayRate" className="block text-sm font-semibold text-gray-700 mb-1">Weekday Rate:</label><input type="number" id="weekdayRate" value={weekdayRate} onChange={(e) => handleValueChange(setWeekdayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm" min="0" placeholder="0.00" /></div>
+                        <div><label htmlFor="saturdayRate" className="block text-sm font-semibold text-gray-700 mb-1">Saturday Rate:</label><input type="number" id="saturdayRate" value={saturdayRate} onChange={(e) => handleValueChange(setSaturdayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm" min="0" placeholder="0.00" /></div>
+                        <div><label htmlFor="sundayRate" className="block text-sm font-semibold text-gray-700 mb-1">Sunday Rate:</label><input type="number" id="sundayRate" value={sundayRate} onChange={(e) => handleValueChange(setSundayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm" min="0" placeholder="0.00" /></div>
                         {includePublicHolidays && (
-                            <div className="animate-fade-in">
-                                <label htmlFor="publicHolidayRate" className="block text-sm font-semibold text-gray-700 mb-1">Public Holiday Rate:</label>
-                                <input type="number" id="publicHolidayRate" value={publicHolidayRate} onChange={(e) => handleValueChange(setPublicHolidayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base" min="0" placeholder="0.00" />
-                            </div>
+                            <div className="animate-fade-in"><label htmlFor="publicHolidayRate" className="block text-sm font-semibold text-gray-700 mb-1">Public Holiday Rate:</label><input type="number" id="publicHolidayRate" value={publicHolidayRate} onChange={(e) => handleValueChange(setPublicHolidayRate, e.target.value)} onFocus={handleFocus} className="w-full p-3 border border-gray-300 rounded-md shadow-sm" min="0" placeholder="0.00" /></div>
                         )}
                     </div>
-                    <div className="mt-4 text-center">
-                        <button onClick={setAllRatesSame} className="px-6 py-2 bg-indigo-500 text-white font-bold rounded-md shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                            Set All Rates Same (as Weekday Rate)
-                        </button>
-                    </div>
+                    <div className="mt-4 text-center"><button onClick={setAllRatesSame} className="px-6 py-2 bg-indigo-500 text-white font-bold rounded-md shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Set All Rates Same</button></div>
                 </div>
 
-                {/* Public Holidays Toggle */}
                 <div className="p-4 border border-red-200 rounded-lg bg-red-50 animate-fade-in">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Public Holidays:</h3>
                     <div className="flex space-x-4 mb-4">
-                        <label className="inline-flex items-center">
-                            <input type="radio" className="form-radio h-5 w-5 text-red-600" name="publicHolidayOption" value="include" checked={includePublicHolidays === true} onChange={() => setIncludePublicHolidays(true)} />
-                            <span className="ml-2 text-gray-700">Include Public Holidays (exclude from normal pay rates)</span>
-                        </label>
-                        <label className="inline-flex items-center">
-                            <input type="radio" className="form-radio h-5 w-5 text-red-600" name="publicHolidayOption" value="skip" checked={includePublicHolidays === false} onChange={() => setIncludePublicHolidays(false)} />
-                            <span className="ml-2 text-gray-700">Skip Public Holiday Exclusion (treat as normal days)</span>
-                        </label>
+                        <label className="inline-flex items-center"><input type="radio" className="form-radio" name="publicHolidayOption" value="include" checked={includePublicHolidays === true} onChange={() => setIncludePublicHolidays(true)} /><span className="ml-2">Include Public Holidays</span></label>
+                        <label className="inline-flex items-center"><input type="radio" className="form-radio" name="publicHolidayOption" value="skip" checked={includePublicHolidays === false} onChange={() => setIncludePublicHolidays(false)} /><span className="ml-2">Treat as normal days</span></label>
+                    </div>
+                    {includePublicHolidays && (
+                        <div className="animate-fade-in"><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (YYYY-MM-DD, comma-separated):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={(e) => setPublicHolidaysInput(e.target.value)} placeholder="e.g., 2025-01-01, 2025-01-27" className="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea><p className="text-sm text-gray-600 mt-1">Default is QLD 2025 holidays. Find more at: <a href="https://www.timeanddate.com/holidays/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">timeanddate.com</a></p></div>
+                    )}
+                </div>
+
+                {/* --- RESULTS --- */}
+                <div className="mt-8 p-6 bg-indigo-600 rounded-xl shadow-lg text-white text-center">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Hours:</h2>
+                    <p className="text-4xl sm:text-5xl font-extrabold mb-4">{formatNumber(totalHours)}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left">
+                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-indigo-200">Weekday:</h3> <p className="text-2xl font-bold">{formatNumber(weekdayHours)}</p> </div>
+                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-indigo-200">Saturday:</h3> <p className="text-2xl font-bold">{formatNumber(saturdayHours)}</p> </div>
+                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-indigo-200">Sunday:</h3> <p className="text-2xl font-bold">{formatNumber(sundayHours)}</p> </div>
+                        {includePublicHolidays && (<div className="bg-indigo-700 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-indigo-200">Public Hol:</h3> <p className="text-2xl font-bold">{formatNumber(publicHolidayHours)}</p> </div>)}
+                    </div>
+                </div>
+
+                <div className="mt-6 p-6 bg-purple-700 rounded-xl shadow-lg text-white text-center">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Pay:</h2>
+                    <p className="text-4xl sm:text-5xl font-extrabold mb-4">${formatNumber(totalPay)}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left">
+                        <div className="bg-purple-800 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-purple-200">Weekday:</h3> <p className="text-2xl font-bold">${formatNumber(weekdayPay)}</p> </div>
+                        <div className="bg-purple-800 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-purple-200">Saturday:</h3> <p className="text-2xl font-bold">${formatNumber(saturdayPay)}</p> </div>
+                        <div className="bg-purple-800 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-purple-200">Sunday:</h3> <p className="text-2xl font-bold">${formatNumber(sundayPay)}</p> </div>
+                        {includePublicHolidays && (<div className="bg-purple-800 p-3 rounded-lg shadow-md"> <h3 className="text-lg font-semibold text-purple-200">Public Hol:</h3> <p className="text-2xl font-bold">${formatNumber(publicHolidayPay)}</p> </div>)}
+                    </div>
+                </div>
+                
+                {/* Saved Quotes Section */}
+                <div className="p-4 border border-cyan-200 rounded-lg bg-cyan-50">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Save Calculation as Quote</h3>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <input
+                            type="text"
+                            value={quoteDescription}
+                            onChange={(e) => setQuoteDescription(e.target.value)}
+                            placeholder="e.g., Standard weekly service"
+                            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500"
+                        />
+                        <button
+                            onClick={handleAddQuote}
+                            disabled={!totalPay && !totalHours}
+                            className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            Save Quote
+                        </button>
                     </div>
 
-                    {/* Custom Public Holidays Input (Conditionally rendered) */}
-                    {includePublicHolidays && (
-                        <div className="animate-fade-in">
-                            <label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">
-                                Enter Custom Public Holidays (YYYY-MM-DD, comma-separated):
-                            </label>
-                            <textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={(e) => setPublicHolidaysInput(e.target.value)} placeholder="e.g., 2025-01-01, 2025-01-27" className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base"></textarea>
-                            <p className="text-sm text-gray-600 mt-1">
-                                Queensland 2025 public holidays are pre-filled by default.
-                                Find more public holidays here: <a href="https://www.timeanddate.com/holidays/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">timeanddate.com/holidays</a>
-                            </p>
+                    {savedQuotes.length > 0 && (
+                        <div className="mt-6 space-y-4">
+                            <h4 className="text-md font-semibold text-gray-700">Saved Quotes:</h4>
+                            {savedQuotes.map(quote => (
+                                <div key={quote.id} className="bg-white p-4 rounded-lg shadow-md border border-gray-200 flex justify-between items-start gap-4">
+                                    <div className="flex-grow">
+                                        <p className="font-bold text-gray-800 break-words">{quote.description}</p>
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            <strong>Total Pay:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span>
+                                        </p>
+                                        {/* MODIFIED: Added breakdown details */}
+                                        <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500 grid grid-cols-2 gap-x-4">
+                                            <p><strong>Weekday:</strong> {formatNumber(quote.details.weekdayHours)} hrs / ${formatNumber(quote.details.weekdayPay)}</p>
+                                            <p><strong>Saturday:</strong> {formatNumber(quote.details.saturdayHours)} hrs / ${formatNumber(quote.details.saturdayPay)}</p>
+                                            <p><strong>Sunday:</strong> {formatNumber(quote.details.sundayHours)} hrs / ${formatNumber(quote.details.sundayPay)}</p>
+                                            {quote.details.publicHolidayHours > 0 && (
+                                                <p><strong>Public Hol:</strong> {formatNumber(quote.details.publicHolidayHours)} hrs / ${formatNumber(quote.details.publicHolidayPay)}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeleteQuote(quote.id)}
+                                        className="text-red-500 hover:text-red-700 font-semibold text-sm flex-shrink-0 p-1"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
 
-                {/* Total Hours Display and Breakdown */}
-                <div className="mt-8 p-6 bg-indigo-600 rounded-xl shadow-lg text-white text-center">
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Hours:</h2>
-                    <p className="text-4xl sm:text-5xl font-extrabold mb-4">
-                        {formatNumber(totalHours)}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left">
-                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-indigo-200">Weekday Hours:</h3>
-                            <p className="text-2xl font-bold">{formatNumber(weekdayHours)}</p>
-                        </div>
-                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-indigo-200">Saturday Hours:</h3>
-                            <p className="text-2xl font-bold">{formatNumber(saturdayHours)}</p>
-                        </div>
-                        <div className="bg-indigo-700 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-indigo-200">Sunday Hours:</h3>
-                            <p className="text-2xl font-bold">{formatNumber(sundayHours)}</p>
-                        </div>
-                        {includePublicHolidays && (
-                            <div className="bg-indigo-700 p-3 rounded-lg shadow-md animate-fade-in">
-                                <h3 className="text-lg font-semibold text-indigo-200">Public Holiday Hours:</h3>
-                                <p className="text-2xl font-bold">{formatNumber(publicHolidayHours)}</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Total Pay Display and Breakdown */}
-                <div className="mt-6 p-6 bg-purple-700 rounded-xl shadow-lg text-white text-center">
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Pay:</h2>
-                    <p className="text-4xl sm:text-5xl font-extrabold mb-4">
-                        ${formatNumber(totalPay)}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left">
-                        <div className="bg-purple-800 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-purple-200">Weekday Pay:</h3>
-                            <p className="text-2xl font-bold">${formatNumber(weekdayPay)}</p>
-                        </div>
-                        <div className="bg-purple-800 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-purple-200">Saturday Pay:</h3>
-                            <p className="text-2xl font-bold">${formatNumber(saturdayPay)}</p>
-                        </div>
-                        <div className="bg-purple-800 p-3 rounded-lg shadow-md">
-                            <h3 className="text-lg font-semibold text-purple-200">Sunday Pay:</h3>
-                            <p className="text-2xl font-bold">${formatNumber(sundayPay)}</p>
-                        </div>
-                        {includePublicHolidays && (
-                            <div className="bg-purple-800 p-3 rounded-lg shadow-md animate-fade-in">
-                                <h3 className="text-lg font-semibold text-purple-200">Public Holiday Pay:</h3>
-                                <p className="text-2xl font-bold">${formatNumber(publicHolidayPay)}</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Period Breakdown Section */}
                 <div className="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-xl shadow-md text-gray-800 text-center">
                     <h2 className="text-xl sm:text-2xl font-bold mb-3 text-indigo-700">Period Breakdown:</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Total Counted Days:</h3>
-                            <p className="text-xl font-bold">{calculatedTotalDays}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Counted Weekdays:</h3>
-                            <p className="text-xl font-bold">{calculatedTotalWeekdays}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Counted Saturdays:</h3>
-                            <p className="text-xl font-bold">{calculatedTotalSaturdays}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Counted Sundays:</h3>
-                            <p className="text-xl font-bold">{calculatedTotalSundays}</p>
-                        </div>
-                        {includePublicHolidays && (
-                            <div className="p-3 bg-white rounded-lg shadow-sm animate-fade-in">
-                                <h3 className="text-lg font-semibold text-gray-700">Counted Public Holidays:</h3>
-                                <p className="text-xl font-bold">{calculatedTotalPublicHolidays}</p>
-                            </div>
-                        )}
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Full Weeks:</h3>
-                            <p className="text-xl font-bold">{calculatedFullWeeks}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Full Fortnights:</h3>
-                            <p className="text-xl font-bold">{calculatedFullFortnights}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700">Full Months:</h3>
-                            <p className="text-xl font-bold">{calculatedFullMonths}</p>
-                        </div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Total Counted Days:</h3> <p className="text-xl font-bold">{calculatedTotalDays}</p> </div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Weekdays:</h3> <p className="text-xl font-bold">{calculatedTotalWeekdays}</p> </div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Saturdays:</h3> <p className="text-xl font-bold">{calculatedTotalSaturdays}</p> </div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Sundays:</h3> <p className="text-xl font-bold">{calculatedTotalSundays}</p> </div>
+                        {includePublicHolidays && (<div className="p-3 bg-white rounded-lg shadow-sm"><h3 className="text-lg font-semibold">Counted Public Hols:</h3><p className="text-xl font-bold">{calculatedTotalPublicHolidays}</p></div>)}
+                        <div className="p-3 bg-white rounded-lg shadow-sm"><h3 className="text-lg font-semibold">Full Weeks:</h3><p className="text-xl font-bold">{calculatedFullWeeks}</p></div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"><h3 className="text-lg font-semibold">Full Fortnights:</h3><p className="text-xl font-bold">{calculatedFullFortnights}</p></div>
+                        <div className="p-3 bg-white rounded-lg shadow-sm"><h3 className="text-lg font-semibold">Full Months:</h3><p className="text-xl font-bold">{calculatedFullMonths}</p></div>
                     </div>
-
                     <div className="mt-6 text-left p-4 border border-gray-200 rounded-lg bg-white text-gray-800">
                         <h3 className="text-lg font-semibold text-indigo-700 mb-2">Calculation Details:</h3>
                         <ul className="list-disc pl-5 space-y-2 text-sm">
-                            <li>
-                                <strong>Overall Calendar Period (Raw Duration):</strong>
-                                This refers to the total calendar time span between your 'From Date' and 'To Date'.
-                                <ul className="list-circle pl-5 mt-1 space-y-1">
-                                    <li><strong>Total Calendar Days:</strong> Every day counted between the 'From Date' and 'To Date'.</li>
-                                    <li><strong>Full Weeks (Calendar):</strong> Total Calendar Days / 7, taking only the whole number.</li>
-                                    <li><strong>Full Fortnights (Calendar):</strong> Total Calendar Days / 14, taking only the whole number.</li>
-                                    <li><strong>Full Months (Calendar):</strong> The number of complete calendar months that fit entirely within your period.</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <strong>Specific Day Counts (Total Weekdays, Saturdays, Sundays, Public Holidays):</strong>
-                                These represent the count of each type of day within the *Overall Calendar Period*, before considering which days you've marked as 'Applicable'.
-                                <ul className="list-circle pl-5 mt-1 space-y-1">
-                                    <li><strong>Total Weekdays:</strong> The count of Monday-Friday dates that are NOT public holidays within the period.</li>
-                                    <li><strong>Total Saturdays:</strong> The count of Saturday dates that are NOT public holidays within the period.</li>
-                                    <li><strong>Total Sundays:</strong> The count of Sunday dates that are NOT public holidays within the period.</li>
-                                    <li><strong>Total Public Holidays:</strong> The count of dates explicitly listed as public holidays within the period.</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <strong>Projected Hours & Pay (Influenced by 'Recurring Type' and 'Applicable Days'):</strong>
-                                The 'Total Projected Hours' and 'Total Projected Pay' (and their breakdowns) are calculated by simulating your work pattern day-by-day across the period.
-                                <ul className="list-circle pl-5 mt-1 space-y-1">
-                                    <li>
-                                        <strong>Daily:</strong> The hours from your 'Applicable Days' are counted for *every* calendar day in the period, respecting holiday exclusions.
-                                    </li>
-                                    <li>
-                                        <strong>Weekly:</strong> The hours from your 'Applicable Days' are counted for *every* occurrence of that day in each week of the period, respecting holiday exclusions.
-                                    </li>
-                                    <li>
-                                        <strong>Fortnightly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first week of each two-week cycle*, starting from your 'From Date', respecting holiday exclusions. This simulates bi-weekly work.
-                                    </li>
-                                    <li>
-                                        <strong>Monthly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first 7 days of each month*, respecting holiday exclusions. This serves as a "ballpark" for monthly recurring work.
-                                    </li>
-                                    <li>
-                                        <strong>Quarterly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first 7 days of the first month of each quarter* (January, April, July, October), respecting holiday exclusions. This provides a "ballpark" for quarterly recurring work.
-                                    </li>
-                                </ul>
-                            </li>
+                           <li><strong>Overall Calendar Period (Raw Duration):</strong> This refers to the total calendar time span between your 'From Date' and 'To Date'.<ul className="list-circle pl-5 mt-1 space-y-1"><li><strong>Total Calendar Days:</strong> Every day counted between the 'From Date' and 'To Date'.</li><li><strong>Full Weeks (Calendar):</strong> Total Calendar Days / 7, taking only the whole number.</li><li><strong>Full Fortnights (Calendar):</strong> Total Calendar Days / 14, taking only the whole number.</li><li><strong>Full Months (Calendar):</strong> The number of complete calendar months that fit entirely within your period.</li></ul></li>
+                           <li><strong>Specific Day Counts (Total Weekdays, Saturdays, Sundays, Public Holidays):</strong> These represent the count of each type of day within the *Overall Calendar Period*, before considering which days you've marked as 'Applicable'.<ul className="list-circle pl-5 mt-1 space-y-1"><li><strong>Total Weekdays:</strong> The count of Monday-Friday dates that are NOT public holidays within the period.</li><li><strong>Total Saturdays:</strong> The count of Saturday dates that are NOT public holidays within the period.</li><li><strong>Total Sundays:</strong> The count of Sunday dates that are NOT public holidays within the period.</li><li><strong>Total Public Holidays:</strong> The count of dates explicitly listed as public holidays within the period.</li></ul></li>
+                           <li><strong>Projected Hours & Pay (Influenced by 'Recurring Type' and 'Applicable Days'):</strong> The 'Total Projected Hours' and 'Total Projected Pay' (and their breakdowns) are calculated by simulating your work pattern day-by-day across the period.<ul className="list-circle pl-5 mt-1 space-y-1"><li><strong>Daily:</strong> The hours from your 'Applicable Days' are counted for *every* calendar day in the period, respecting holiday exclusions.</li><li><strong>Weekly:</strong> The hours from your 'Applicable Days' are counted for *every* occurrence of that day in each week of the period, respecting holiday exclusions.</li><li><strong>Fortnightly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first week of each two-week cycle*, starting from your 'From Date', respecting holiday exclusions. This simulates bi-weekly work.</li><li><strong>Monthly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first 7 days of each month*, respecting holiday exclusions. This serves as a "ballpark" for monthly recurring work.</li><li><strong>Quarterly:</strong> The hours from your 'Applicable Days' are counted only for days falling within the *first 7 days of the first month of each quarter* (January, April, July, October), respecting holiday exclusions. This provides a "ballpark" for quarterly recurring work.</li></ul></li>
                         </ul>
                     </div>
                 </div>
