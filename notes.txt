@@ -1,0 +1,22 @@
+# Notes
+Notes regarding the app
+## Setup
+🎉  SUCCESS  Application deployed successfully!
+
+🔍 View Project
+Visit: https://hoursappcf.pages.dev
+Dash: https://dash.cloudflare.com/?to=/:account/workers/services/view/hoursappcf
+
+💻 Continue Developing
+Change directories: cd hoursappcf
+Start dev server: npm run dev
+Deploy again: npm run deploy
+
+📖 Explore Documentation
+https://developers.cloudflare.com/pages
+
+🐛 Report an Issue
+https://github.com/cloudflare/workers-sdk/issues/new/choose
+
+💬 Join our Community
+https://discord.cloudflare.com
