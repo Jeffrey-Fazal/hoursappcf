@@ -18,12 +18,6 @@ const formatNumber = (num) => typeof num === 'number' && !isNaN(num) ? num.toLoc
 
 // --- Custom Hooks ---
 
-/**
- * A custom hook to manage state in localStorage.
- * @param {string} key - The key to use in localStorage.
- * @param {*} initialValue - The initial value if nothing is in localStorage.
- * @returns {[*, Function]} - The stateful value and a function to update it.
- */
 const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
         try {
@@ -46,11 +40,6 @@ const useLocalStorage = (key, initialValue) => {
     return [storedValue, setStoredValue];
 };
 
-
-/**
- * A custom hook to fetch and manage NDIS rates data.
- * @returns {{ndisRates: Array, isLoading: boolean, error: string|null}}
- */
 const useNdisRates = () => {
     const [ndisRates, setNdisRates] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,12 +70,6 @@ const useNdisRates = () => {
 
 // --- Core Calculation Logic ---
 
-/**
- * Calculates all totals based on the provided inputs.
- * This is a pure function, decoupled from the component state.
- * @param {object} inputs - An object containing all necessary data for calculation.
- * @returns {object} - An object with all the calculated results.
- */
 const calculateAllTotals = (inputs) => {
     const { fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates, budget, budgetMode } = inputs;
     
@@ -98,14 +81,13 @@ const calculateAllTotals = (inputs) => {
     }
 
     const numRates = {
-        weekday: parseFloat(rates.weekdayRate) || 0,
-        weekdayEvening: parseFloat(rates.weekdayEveningRate) || 0,
-        saturday: parseFloat(rates.saturdayRate) || 0,
-        sunday: parseFloat(rates.sundayRate) || 0,
-        publicHoliday: parseFloat(rates.publicHolidayRate) || 0,
+        weekday: parseFloat(rates.weekday.rate) || 0,
+        weekdayEvening: parseFloat(rates.weekdayEvening.rate) || 0,
+        saturday: parseFloat(rates.saturday.rate) || 0,
+        sunday: parseFloat(rates.sunday.rate) || 0,
+        publicHoliday: parseFloat(rates.publicHoliday.rate) || 0,
     };
-    const numBudget = parseFloat(budget) || 0;
-
+    
     let totals = {
         weekdayHours: 0, weekdayEveningHours: 0, saturdayHours: 0, sundayHours: 0, publicHolidayHours: 0,
         breakdown: { days: 0, weekdays: 0, saturdays: 0, sundays: 0, publicHolidays: 0 },
@@ -123,13 +105,28 @@ const calculateAllTotals = (inputs) => {
 
         let shouldCount = false;
         switch (recurringType) {
-            case 'Weekly': shouldCount = true; break;
+            case 'Daily':
+                shouldCount = true;
+                break;
+            case 'Weekly':
+                shouldCount = true;
+                break;
             case 'Fortnightly':
                 const daysSinceStart = Math.floor((d.getTime() - start.getTime()) / (1000 * 3600 * 24));
                 if (Math.floor(daysSinceStart / 7) % 2 === 0) shouldCount = true;
                 break;
-            // Add other recurring types if necessary
-            default: shouldCount = true; break;
+            case 'Monthly':
+                 if (d.getDate() <= 7) shouldCount = true;
+                 break;
+            case 'Quarterly':
+                const month = d.getMonth();
+                if ([0, 3, 6, 9].includes(month) && d.getDate() <= 7) {
+                    shouldCount = true;
+                }
+                break;
+            default:
+                shouldCount = true;
+                break;
         }
 
         if (shouldCount) {
@@ -172,7 +169,7 @@ const calculateAllTotals = (inputs) => {
     let monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 - start.getMonth() + end.getMonth();
     if (end.getDate() < start.getDate() && monthsDiff > 0) monthsDiff--;
 
-    const results = {
+    return {
         totalHours: roundUpToTwoDecimals(totalHours),
         totalPay: roundUpToTwoDecimals(totalPay),
         weekdayHours: roundUpToTwoDecimals(totals.weekdayHours),
@@ -193,39 +190,20 @@ const calculateAllTotals = (inputs) => {
         calculatedFullWeeks: Math.floor(totals.breakdown.days / 7),
         calculatedFullFortnights: Math.floor(totals.breakdown.days / 14),
         calculatedFullMonths: Math.max(0, monthsDiff),
-        suggestedDailyHours: {},
         error: null
     };
-
-    if (budgetMode === 'lock' && numBudget > 0 && totalPay > 0) {
-        const hourScalingFactor = numBudget / totalPay;
-        Object.entries(weeklyDays).forEach(([dayName, { selected, hours }]) => {
-            const currentHours = parseFloat(hours) || 0;
-            results.suggestedDailyHours[dayName] = {
-                selected: selected,
-                hours: selected ? currentHours * hourScalingFactor : 0
-            };
-        });
-    }
-
-    return results;
 };
 
 
 // --- Child Components ---
 
-const Tooltip = ({ children, text }) => (
-    <span className="relative group cursor-help">
-        {children}
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-gray-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
-            {text}
-        </span>
-    </span>
-);
-
-const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], excludeKeywords = [], isLoading }) => {
-    const [searchTerm, setSearchTerm] = useState('');
+const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], excludeKeywords = [], isLoading, value }) => {
+    const [searchTerm, setSearchTerm] = useState(value || '');
     const [isFocused, setIsFocused] = useState(false);
+
+    useEffect(() => {
+        setSearchTerm(value || '');
+    }, [value]);
 
     const filteredItems = useMemo(() => {
         if (isLoading || !items) return [];
@@ -282,14 +260,13 @@ const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], 
 
 const FloatingNav = ({ totalPay, totalHours }) => {
     const navItems = [
-        { href: '#date-range-section', label: 'Date Range & Recurring Type' },
-        { href: '#applicable-days', label: 'Applicable Days & Hours' },
-        { href: '#ndis-rates', label: 'NDIS Rate Finder' },
-        { href: '#hourly-rates', label: 'Manual Hourly Rates' },
-        { href: '#budget', label: 'Budget Information' },
-        { href: '#public-holidays', label: 'Public Holidays' },
-        { href: '#results', label: 'Results' },
-        { href: '#saved-quotes', label: 'Saved Quotes' },
+        { href: '#date-range-section', label: 'Date Range & Recurring Type', textColor: 'text-blue-700', hoverTextColor: 'hover:text-blue-800' },
+        { href: '#applicable-days', label: 'Applicable Days & Hours', textColor: 'text-yellow-800', hoverTextColor: 'hover:text-yellow-900' },
+        { href: '#ndis-rates', label: 'NDIS Rate Finder', textColor: 'text-sky-700', hoverTextColor: 'hover:text-sky-800' },
+        { href: '#hourly-rates', label: 'Manual Hourly Rates', textColor: 'text-green-700', hoverTextColor: 'hover:text-green-800' },
+        { href: '#public-holidays', label: 'Public Holidays', textColor: 'text-red-700', hoverTextColor: 'hover:text-red-800' },
+        { href: '#results', label: 'Results', textColor: 'text-indigo-600', hoverTextColor: 'hover:text-indigo-700' },
+        { href: '#saved-quotes', label: 'Saved Quotes', textColor: 'text-cyan-700', hoverTextColor: 'hover:text-cyan-800' },
     ];
     
     useEffect(() => {
@@ -306,9 +283,15 @@ const FloatingNav = ({ totalPay, totalHours }) => {
                 <p className="text-2xl font-bold text-indigo-700">{formatNumber(totalHours)}</p>
             </div>
             <nav>
-                <ul className="space-y-2">{navItems.map(item => (
-                    <li key={item.href}><a href={item.href} className="block text-center text-sm font-semibold text-gray-700 hover:text-indigo-600 hover:bg-gray-100 p-2 rounded-md transition-colors">{item.label}</a></li>
-                ))}</ul>
+                <ul className="space-y-2">
+                    {navItems.map(item => (
+                        <li key={item.href}>
+                            <a href={item.href} className={`block text-center text-sm font-semibold ${item.textColor} ${item.hoverTextColor} hover:bg-gray-100 p-2 rounded-md transition-colors`}>
+                                {item.label}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
             </nav>
         </div>
     );
@@ -330,8 +313,11 @@ const DateRangeSection = ({ fromDate, toDate, setFromDate, setToDate, recurringT
          <div className="mt-4">
             <label htmlFor="recurringType" className="block text-lg font-semibold text-gray-700 mb-2">Recurring Type:</label>
             <select id="recurringType" value={recurringType} onChange={e => setRecurringType(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm bg-white">
+                <option value="Daily">Daily</option>
                 <option value="Weekly">Weekly</option>
                 <option value="Fortnightly">Fortnightly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
             </select>
         </div>
     </Section>
@@ -363,26 +349,49 @@ const ApplicableDaysSection = ({ weeklyDays, handlers }) => (
     </Section>
 );
 
-const NdisRateFinderSection = ({ ndisRates, isLoading, handleNdisRateSelect }) => (
-    <Section id="ndis-rates" title="NDIS Rate Finder" color="sky">
-         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <SearchableDropdown label="Weekday Day" items={ndisRates} onSelectItem={item => handleNdisRateSelect('weekday', item)} excludeKeywords={['evening', 'saturday', 'sunday', 'public holiday']} isLoading={isLoading} />
-            <SearchableDropdown label="Weekday Evening" items={ndisRates} onSelectItem={item => handleNdisRateSelect('weekdayEvening', item)} includeKeywords={['weekday', 'evening']} isLoading={isLoading} />
-            <SearchableDropdown label="Saturday" items={ndisRates} onSelectItem={item => handleNdisRateSelect('saturday', item)} includeKeywords={['saturday']} isLoading={isLoading} />
-            <SearchableDropdown label="Sunday" items={ndisRates} onSelectItem={item => handleNdisRateSelect('sunday', item)} includeKeywords={['sunday']} isLoading={isLoading} />
-            <SearchableDropdown label="Public Holiday" items={ndisRates} onSelectItem={item => handleNdisRateSelect('publicHoliday', item)} includeKeywords={['public holiday']} isLoading={isLoading} />
-        </div>
-    </Section>
-);
+const NdisRateFinderSection = ({ rates, ndisRates, isLoading, handleNdisRateSelect }) => {
+    const rateFinderConfig = [
+        { key: 'weekday', label: 'Weekday Day', include: [], exclude: ['evening', 'saturday', 'sunday', 'public holiday'] },
+        { key: 'weekdayEvening', label: 'Weekday Evening', include: ['weekday', 'evening'], exclude: [] },
+        { key: 'saturday', label: 'Saturday', include: ['saturday'], exclude: [] },
+        { key: 'sunday', label: 'Sunday', include: ['sunday'], exclude: [] },
+        { key: 'publicHoliday', label: 'Public Holiday', include: ['public holiday'], exclude: [] },
+    ];
+
+    return (
+        <Section id="ndis-rates" title="NDIS Rate Finder" color="sky">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+                {rateFinderConfig.map(config => (
+                    <div key={config.key}>
+                        <SearchableDropdown
+                            label={config.label}
+                            items={ndisRates}
+                            value={rates[config.key].name}
+                            onSelectItem={item => handleNdisRateSelect(config.key, item)}
+                            includeKeywords={config.include}
+                            excludeKeywords={config.exclude}
+                            isLoading={isLoading}
+                        />
+                        {rates[config.key].number && (
+                             <p className="text-xs font-mono text-gray-700 mt-1 px-1 select-all">
+                                {rates[config.key].number}
+                            </p>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </Section>
+    );
+};
 
 const ManualRatesSection = ({ rates, handlers }) => (
     <Section id="hourly-rates" title="Manual Hourly Rates" color="green">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div><label className="block text-sm font-semibold mb-1">Weekday Day:</label><input type="number" value={rates.weekdayRate} onChange={e => handlers.handleRateChange('weekdayRate', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Weekday Eve:</label><input type="number" value={rates.weekdayEveningRate} onChange={e => handlers.handleRateChange('weekdayEveningRate', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Saturday:</label><input type="number" value={rates.saturdayRate} onChange={e => handlers.handleRateChange('saturdayRate', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Sunday:</label><input type="number" value={rates.sundayRate} onChange={e => handlers.handleRateChange('sundayRate', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
-            <div><label className="block text-sm font-semibold mb-1">Public Holiday:</label><input type="number" value={rates.publicHolidayRate} onChange={e => handlers.handleRateChange('publicHolidayRate', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Weekday Day:</label><input type="number" value={rates.weekday.rate} onChange={e => handlers.handleRateChange('weekday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Weekday Eve:</label><input type="number" value={rates.weekdayEvening.rate} onChange={e => handlers.handleRateChange('weekdayEvening', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Saturday:</label><input type="number" value={rates.saturday.rate} onChange={e => handlers.handleRateChange('saturday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Sunday:</label><input type="number" value={rates.sunday.rate} onChange={e => handlers.handleRateChange('sunday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-semibold mb-1">Public Holiday:</label><input type="number" value={rates.publicHoliday.rate} onChange={e => handlers.handleRateChange('publicHoliday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
         </div>
         <div className="mt-4 text-center"><button onClick={handlers.setAllRatesSame} className="px-6 py-2 bg-indigo-500 text-white font-bold rounded-md shadow-md hover:bg-indigo-600">Set All Rates Same as Weekday Day</button></div>
     </Section>
@@ -415,23 +424,79 @@ const ResultsSection = ({ results }) => (
     </div>
 );
 
-const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteDescription, results }) => (
+const SavedQuoteItem = ({ quote, onDelete }) => {
+    const quoteDetails = useMemo(() => {
+        if (!quote.results || !quote.rates) return [];
+        return [
+            { label: 'Weekday Day', hours: quote.results.weekdayHours, pay: quote.results.weekdayPay, rateInfo: quote.rates.weekday },
+            { label: 'Weekday Evening', hours: quote.results.weekdayEveningHours, pay: quote.results.weekdayEveningPay, rateInfo: quote.rates.weekdayEvening },
+            { label: 'Saturday', hours: quote.results.saturdayHours, pay: quote.results.saturdayPay, rateInfo: quote.rates.saturday },
+            { label: 'Sunday', hours: quote.results.sundayHours, pay: quote.results.sundayPay, rateInfo: quote.rates.sunday },
+            { label: 'Public Holiday', hours: quote.results.publicHolidayHours, pay: quote.results.publicHolidayPay, rateInfo: quote.rates.publicHoliday },
+        ].filter(detail => detail.hours > 0 && detail.rateInfo);
+    }, [quote]);
+
+    return (
+        <div className="bg-white p-4 rounded-lg shadow-md border">
+            <div className="flex justify-between items-start gap-4">
+                <div className="flex-grow">
+                    <p className="font-bold text-gray-800">{quote.description}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                        <strong>Total Pay:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span>
+                    </p>
+                </div>
+                <button onClick={() => onDelete(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1 flex-shrink-0">Delete</button>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-2 font-semibold">Service</th>
+                            <th className="p-2 font-semibold">Item Name & Number</th>
+                            <th className="p-2 font-semibold text-right">Rate</th>
+                            <th className="p-2 font-semibold text-right">Hours</th>
+                            <th className="p-2 font-semibold text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {quoteDetails.map(detail => (
+                            <tr key={detail.label} className="border-b">
+                                <td className="p-2">{detail.label}</td>
+                                <td className="p-2">
+                                    <p>{detail.rateInfo.name || 'N/A'}</p>
+                                    <p className="font-mono text-xs text-gray-600">{detail.rateInfo.number || 'Manual Rate'}</p>
+                                </td>
+                                <td className="p-2 text-right">${formatNumber(parseFloat(detail.rateInfo.rate))}</td>
+                                <td className="p-2 text-right">{formatNumber(detail.hours)}</td>
+                                <td className="p-2 text-right font-semibold">${formatNumber(detail.pay)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                     <tfoot className="font-bold">
+                        <tr>
+                            <td colSpan="3" className="p-2 text-right">Grand Total:</td>
+                            <td className="p-2 text-right">{formatNumber(quote.totalHours)}</td>
+                            <td className="p-2 text-right">${formatNumber(quote.totalPay)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteDescription, rates, results }) => (
     <Section id="saved-quotes" title="Save Calculation as Quote" color="cyan">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
             <input type="text" value={quoteDescription} onChange={e => setQuoteDescription(e.target.value)} placeholder="e.g., Standard weekly service" className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/>
-            <button onClick={handlers.handleAddQuote} disabled={!results.totalPay && !results.totalHours} className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400">Save Quote</button>
+            <button onClick={() => handlers.handleAddQuote({ rates, results })} disabled={!results.totalPay && !results.totalHours} className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400">Save Quote</button>
         </div>
         {savedQuotes.length > 0 && (
             <div className="mt-6 space-y-4">
                 <h4 className="text-md font-semibold text-gray-700">Saved Quotes:</h4>
                 {savedQuotes.map(quote => (
-                    <div key={quote.id} className="bg-white p-4 rounded-lg shadow-md border flex justify-between items-start gap-4">
-                        <div className="flex-grow">
-                            <p className="font-bold text-gray-800">{quote.description}</p>
-                            <p className="text-sm text-gray-600 mt-1"><strong>Total Pay:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span></p>
-                        </div>
-                        <button onClick={() => handlers.handleDeleteQuote(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1">Delete</button>
-                    </div>
+                    <SavedQuoteItem key={quote.id} quote={quote} onDelete={handlers.handleDeleteQuote} />
                 ))}
             </div>
         )}
@@ -442,12 +507,30 @@ const PeriodBreakdownSection = ({ results }) => (
     <div className="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-xl text-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-3 text-indigo-700">Period Breakdown:</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Days:</h3> <p className="text-xl font-bold">{results.calculatedTotalDays}</p> </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Weekdays:</h3> <p className="text-xl font-bold">{results.calculatedTotalWeekdays}</p> </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Saturdays:</h3> <p className="text-xl font-bold">{results.calculatedTotalSaturdays}</p> </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Counted Sundays:</h3> <p className="text-xl font-bold">{results.calculatedTotalSundays}</p> </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Public Hols:</h3> <p className="text-xl font-bold">{results.calculatedTotalPublicHolidays}</p> </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm"> <h3 className="text-lg font-semibold">Full Weeks:</h3> <p className="text-xl font-bold">{results.calculatedFullWeeks}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Counted Days:</h3>
+                <p className="text-xl font-bold">{results.calculatedTotalDays}</p>
+            </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Counted Weekdays:</h3>
+                <p className="text-xl font-bold">{results.calculatedTotalWeekdays}</p>
+            </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Counted Saturdays:</h3>
+                <p className="text-xl font-bold">{results.calculatedTotalSaturdays}</p>
+            </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Counted Sundays:</h3>
+                <p className="text-xl font-bold">{results.calculatedTotalSundays}</p>
+            </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Public Hols:</h3>
+                <p className="text-xl font-bold">{results.calculatedTotalPublicHolidays}</p>
+            </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold">Full Weeks:</h3>
+                <p className="text-xl font-bold">{results.calculatedFullWeeks}</p>
+            </div>
         </div>
     </div>
 );
@@ -465,11 +548,15 @@ const App = () => {
         Friday: { selected: false, hours: '', shift: 'day' }, Saturday: { selected: false, hours: '', shift: 'day' },
         Sunday: { selected: false, hours: '', shift: 'day' },
     });
-    const [rates, setRates] = useState({ weekdayRate: '', weekdayEveningRate: '', saturdayRate: '', sundayRate: '', publicHolidayRate: '' });
+    const [rates, setRates] = useState({
+        weekday: { name: '', rate: '', number: '' },
+        weekdayEvening: { name: '', rate: '', number: '' },
+        saturday: { name: '', rate: '', number: '' },
+        sunday: { name: '', rate: '', number: '' },
+        publicHoliday: { name: '', rate: '', number: '' }
+    });
     const [includePublicHolidays, setIncludePublicHolidays] = useState(true);
     const [publicHolidaysInput, setPublicHolidaysInput] = useState(DEFAULT_QLD_PUBLIC_HOLIDAYS);
-    const [budgetMode, setBudgetMode] = useState('noBudget');
-    const [budget, setBudget] = useState('');
     const [quoteDescription, setQuoteDescription] = useState('');
     const [savedQuotes, setSavedQuotes] = useLocalStorage('savedQuotes', []);
     const [error, setError] = useState('');
@@ -479,29 +566,19 @@ const App = () => {
     
     // --- Calculations ---
     const calculationResults = useMemo(() => calculateAllTotals({
-        fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates, budget, budgetMode
-    }), [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates, budget, budgetMode]);
+        fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates
+    }), [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates]);
     
-    // Update local error state if calculation returns an error
     useEffect(() => {
         if (calculationResults.error) {
             setError(calculationResults.error);
         } else {
-            setError(''); // Clear previous errors
+            setError(''); 
         }
     }, [calculationResults.error]);
     
     // --- Handlers ---
     const handleFocus = (event) => event.target.select();
-    
-    const handleValueChange = (setter, value) => {
-        if (value === '' || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
-            setter(value);
-            setError('');
-        } else {
-            setError('Value must be a non-negative number.');
-        }
-    };
     
     const dayHandlers = {
         handleWeeklyDayChange: (day) => setWeeklyDays(p => ({ ...p, [day]: { ...p[day], selected: !p[day].selected } })),
@@ -517,30 +594,66 @@ const App = () => {
     const rateHandlers = {
         handleRateChange: (rateName, value) => {
             if (value === '' || !isNaN(parseFloat(value))) {
-                setRates(prev => ({ ...prev, [rateName]: value }));
+                setRates(prev => ({ ...prev, [rateName]: { name: '', number: '', rate: value } }));
             }
         },
         setAllRatesSame: () => {
-            const baseRate = rates.weekdayRate;
-            setRates({ weekdayRate: baseRate, weekdayEveningRate: baseRate, saturdayRate: baseRate, sundayRate: baseRate, publicHolidayRate: baseRate });
+            const baseRate = rates.weekday.rate;
+            const newRates = {};
+            for (const key in rates) {
+                newRates[key] = { ...rates[key], rate: baseRate };
+            }
+            setRates(newRates);
         },
         handleFocus,
     };
 
     const handleNdisRateSelect = useCallback((rateType, item) => {
-        const rate = (item.QLD || 0).toString();
-        const rateKey = `${rateType}Rate`;
-        setRates(prev => ({...prev, [rateKey]: rate }));
-    }, []);
+        const getInfoFromItem = (i) => ({
+            name: i["Support Item Name"],
+            rate: (i.QLD || 0).toString(),
+            number: i["Support Item Number"]
+        });
+        
+        const selectedRateInfo = getInfoFromItem(item);
+
+        if (rateType === 'weekday') {
+            const newRatesToUpdate = { weekday: selectedRateInfo };
+            const itemName = item["Support Item Name"].toLowerCase();
+            const baseName = itemName.replace(/ - (weekday|saturday|sunday|public holiday|evening|night|daytime|day).*/, '').trim();
+
+            const rateMappings = {
+                weekdayEvening: ['evening', 'night'],
+                saturday: ['saturday'],
+                sunday: ['sunday'],
+                publicHoliday: ['public holiday'],
+            };
+
+            for (const [key, keywords] of Object.entries(rateMappings)) {
+                const foundItem = ndisRates.find(rateItem => {
+                    const currentItemName = rateItem["Support Item Name"].toLowerCase();
+                    return currentItemName.includes(baseName) && keywords.some(kw => currentItemName.includes(kw));
+                });
+                if (foundItem) {
+                    newRatesToUpdate[key] = getInfoFromItem(foundItem);
+                }
+            }
+            setRates(prev => ({ ...prev, ...newRatesToUpdate }));
+        } else {
+            setRates(prev => ({ ...prev, [rateType]: selectedRateInfo }));
+        }
+    }, [ndisRates]);
 
     const quoteHandlers = {
-        handleAddQuote: () => {
+        handleAddQuote: ({ rates, results }) => {
             if (!quoteDescription.trim()) { setError('Please enter a description for the quote.'); return; }
             const newQuote = { 
                 id: crypto.randomUUID(), 
                 description: quoteDescription.trim(), 
-                totalPay: calculationResults.totalPay, 
-                totalHours: calculationResults.totalHours 
+                totalPay: results.totalPay, 
+                totalHours: results.totalHours,
+                rates,
+                results
             };
             setSavedQuotes(p => [...p, newQuote]);
             setQuoteDescription('');
@@ -562,19 +675,26 @@ const App = () => {
                 
                 <DateRangeSection fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} recurringType={recurringType} setRecurringType={setRecurringType} />
                 <ApplicableDaysSection weeklyDays={weeklyDays} handlers={dayHandlers} />
-                <NdisRateFinderSection ndisRates={ndisRates} isLoading={isLoadingRates} handleNdisRateSelect={handleNdisRateSelect} />
+                <NdisRateFinderSection rates={rates} ndisRates={ndisRates} isLoading={isLoadingRates} handleNdisRateSelect={handleNdisRateSelect} />
                 <ManualRatesSection rates={rates} handlers={rateHandlers} />
                 <Section id="public-holidays" title="Public Holidays" color="red">
                     <div className="flex space-x-4 mb-4">
                         <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={includePublicHolidays} onChange={() => setIncludePublicHolidays(true)}/><span className="ml-2">Include</span></label>
                         <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={!includePublicHolidays} onChange={() => setIncludePublicHolidays(false)}/><span className="ml-2">Skip</span></label>
                     </div>
-                    {includePublicHolidays && (<div><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (comma-separated, YYYY-MM-DD):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={e => setPublicHolidaysInput(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md"></textarea></div>)}
+                    {includePublicHolidays && (<div><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (comma-separated, accepter-MM-DD):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={e => setPublicHolidaysInput(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md"></textarea></div>)}
                 </Section>
                 
                 <ResultsSection results={calculationResults} />
 
-                <SavedQuotesSection savedQuotes={savedQuotes} handlers={quoteHandlers} quoteDescription={quoteDescription} setQuoteDescription={setQuoteDescription} results={calculationResults} />
+                <SavedQuotesSection 
+                    savedQuotes={savedQuotes} 
+                    handlers={quoteHandlers} 
+                    quoteDescription={quoteDescription} 
+                    setQuoteDescription={setQuoteDescription} 
+                    rates={rates} 
+                    results={calculationResults} 
+                />
 
                 <PeriodBreakdownSection results={calculationResults} />
             </main>
