@@ -1,44 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
-// NDIS Data - In a real app, this would be fetched from a public URL
-const ndisRates2025 = [
+// --- LIVE DATA FETCHING ---
+// The app now fetches the NDIS rates from your specified URL.
+const NDIS_RATES_URL = 'https://hoursappcf.pages.dev/ndisrates2025.json';
+
+// --- EMBEDDED NDIS DATA (FOR OFFLINE DEVELOPMENT) ---
+// This is a small sample of the data. You can comment out the fetch logic 
+// and use this for offline testing if needed.
+const ndisRates2025_offline = [
+  {
+    "Support Item Number": "01_004_0107_1_1",
+    "Support Item Name": "Assistance with Personal Domestic Activities",
+    "QLD": 59.06
+  },
   {
     "Support Item Number": "01_002_0107_1_1",
     "Support Item Name": "Assistance With Self-Care Activities - Standard - Weekday Night",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
     "QLD": 78.81
   },
   {
     "Support Item Number": "01_011_0107_1_1",
     "Support Item Name": "Assistance With Self-Care Activities - Standard - Weekday Daytime",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
     "QLD": 70.23
   },
-  {
-    "Support Item Number": "01_012_0107_1_1",
-    "Support Item Name": "Assistance With Self-Care Activities - Standard - Public Holiday",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
-    "QLD": 156.03
-  },
-  {
-    "Support Item Number": "01_013_0107_1_1",
-    "Support Item Name": "Assistance With Self-Care Activities - Standard - Saturday",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
-    "QLD": 98.83
-  },
-  {
-    "Support Item Number": "01_014_0107_1_1",
-    "Support Item Name": "Assistance With Self-Care Activities - Standard - Sunday",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
-    "QLD": 127.43
-  },
-  {
-    "Support Item Number": "01_015_0107_1_1",
-    "Support Item Name": "Assistance With Self-Care Activities - Standard - Weekday Evening",
-    "Support Category Name (PACE)": "Assistance with Daily Life",
-    "QLD": 77.38
-  },
-  // Add all other rates from the JSON file here...
+  // ... more items would be here
 ];
 
 
@@ -69,17 +54,21 @@ const roundUpToTwoDecimals = (num) => {
 };
 
 // Searchable Dropdown Component
-const SearchableDropdown = ({ label, items, onSelectItem, filterKeywords = [] }) => {
+const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], excludeKeywords = [], isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 
     const filteredItems = useMemo(() => {
+        if (isLoading || !items) return [];
+
         const preFiltered = items.filter(item => {
             const itemNameLower = (item["Support Item Name"] || '').toLowerCase();
-            return filterKeywords.every(keyword => itemNameLower.includes(keyword));
+            const hasIncluded = includeKeywords.every(keyword => itemNameLower.includes(keyword));
+            const hasExcluded = excludeKeywords.some(keyword => itemNameLower.includes(keyword));
+            return hasIncluded && !hasExcluded;
         });
 
-        if (!searchTerm) return [];
+        if (!searchTerm.trim()) return [];
 
         const searchWords = searchTerm.toLowerCase().replace(/[-/]/g, ' ').split(' ').filter(word => word);
 
@@ -96,7 +85,7 @@ const SearchableDropdown = ({ label, items, onSelectItem, filterKeywords = [] })
             return searchWords.every(word => searchableItemName.includes(word));
         }).slice(0, 100);
 
-    }, [searchTerm, items, filterKeywords]);
+    }, [searchTerm, items, includeKeywords, excludeKeywords, isLoading]);
 
     const handleSelect = (item) => {
         onSelectItem(item);
@@ -113,8 +102,9 @@ const SearchableDropdown = ({ label, items, onSelectItem, filterKeywords = [] })
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-                placeholder="Search by name or item number..."
+                placeholder={isLoading ? "Loading rates..." : "Search by name or item number..."}
                 className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+                disabled={isLoading}
             />
             {isFocused && searchTerm && (
                 <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
@@ -134,9 +124,10 @@ const SearchableDropdown = ({ label, items, onSelectItem, filterKeywords = [] })
     );
 };
 
-// NEW: Floating Navigation Component
+// Floating Navigation Component
 const FloatingNav = ({ totalPay, totalHours, formatNumber }) => {
     const navItems = [
+        { href: '#date-range-section', label: 'From & To Dates' },
         { href: '#applicable-days', label: 'Applicable Days' },
         { href: '#ndis-rates', label: 'NDIS Rates' },
         { href: '#hourly-rates', label: 'Manual Rates' },
@@ -147,7 +138,6 @@ const FloatingNav = ({ totalPay, totalHours, formatNumber }) => {
     ];
     
     useEffect(() => {
-        // Enable smooth scrolling
         document.documentElement.style.scrollBehavior = 'smooth';
         return () => {
             document.documentElement.style.scrollBehavior = 'auto';
@@ -227,7 +217,28 @@ const App = () => {
     const [calculatedFullMonths, setCalculatedFullMonths] = useState(0);
     const [quoteDescription, setQuoteDescription] = useState('');
     const [savedQuotes, setSavedQuotes] = useState(() => { try { const d = localStorage.getItem('savedQuotes'); return d ? JSON.parse(d) : [] } catch (e) { return [] } });
+    const [ndisRates, setNdisRates] = useState([]);
+    const [isLoadingRates, setIsLoadingRates] = useState(true);
+    const [rateError, setRateError] = useState(null);
+
     useEffect(() => { try { localStorage.setItem('savedQuotes', JSON.stringify(savedQuotes)) } catch (e) {} }, [savedQuotes]);
+    useEffect(() => {
+        const fetchRates = async () => {
+            setIsLoadingRates(true); setRateError(null);
+            try {
+                const response = await fetch(NDIS_RATES_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                setNdisRates(data);
+            } catch (e) {
+                console.error("Failed to fetch NDIS rates:", e);
+                setRateError("Could not load NDIS rates. Check connection and refresh.");
+            } finally {
+                setIsLoadingRates(false);
+            }
+        };
+        fetchRates();
+    }, []);
 
     // Handlers
     const handleFocus = (event) => event.target.select();
@@ -390,6 +401,7 @@ const App = () => {
                 </h1>
 
                 {error && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md"><strong className="font-bold">Error:</strong><span className="ml-2">{error}</span></div>)}
+                {rateError && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md"><strong className="font-bold">Rate Loading Error:</strong><span className="ml-2">{rateError}</span></div>)}
                 
                 <div id="date-range-section" className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
                     <div><label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">From Date:</label><input type="date" id="fromDate" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
@@ -436,11 +448,11 @@ const App = () => {
                 <div id="ndis-rates" className="p-4 border border-sky-200 rounded-lg bg-sky-50 animate-fade-in">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">NDIS Rate Finder</h3>
                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <SearchableDropdown label="Weekday Day" items={ndisRates2025} onSelectItem={(item) => handleNdisRateSelect('weekdayDay', item)} filterKeywords={['weekday', 'daytime']} />
-                        <SearchableDropdown label="Weekday Evening" items={ndisRates2025} onSelectItem={(item) => handleNdisRateSelect('weekdayEvening', item)} filterKeywords={['weekday', 'evening']} />
-                        <SearchableDropdown label="Saturday" items={ndisRates2025} onSelectItem={(item) => handleNdisRateSelect('saturday', item)} filterKeywords={['saturday']} />
-                        <SearchableDropdown label="Sunday" items={ndisRates2025} onSelectItem={(item) => handleNdisRateSelect('sunday', item)} filterKeywords={['sunday']} />
-                        <SearchableDropdown label="Public Holiday" items={ndisRates2025} onSelectItem={(item) => handleNdisRateSelect('publicHoliday', item)} filterKeywords={['public holiday']} />
+                        <SearchableDropdown label="Weekday Day" items={ndisRates} onSelectItem={(item) => handleNdisRateSelect('weekdayDay', item)} excludeKeywords={['evening', 'saturday', 'sunday', 'public holiday']} isLoading={isLoadingRates} />
+                        <SearchableDropdown label="Weekday Evening" items={ndisRates} onSelectItem={(item) => handleNdisRateSelect('weekdayEvening', item)} includeKeywords={['weekday', 'evening']} isLoading={isLoadingRates} />
+                        <SearchableDropdown label="Saturday" items={ndisRates} onSelectItem={(item) => handleNdisRateSelect('saturday', item)} includeKeywords={['saturday']} isLoading={isLoadingRates} />
+                        <SearchableDropdown label="Sunday" items={ndisRates} onSelectItem={(item) => handleNdisRateSelect('sunday', item)} includeKeywords={['sunday']} isLoading={isLoadingRates} />
+                        <SearchableDropdown label="Public Holiday" items={ndisRates} onSelectItem={(item) => handleNdisRateSelect('publicHoliday', item)} includeKeywords={['public holiday']} isLoading={isLoadingRates} />
                     </div>
                 </div>
 
