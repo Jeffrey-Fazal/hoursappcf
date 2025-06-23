@@ -1,0 +1,102 @@
+{
+  "agreement": {
+    "1": {
+      "title": "Parties To The Agreement",
+      "content": "This Service Agreement will commence on from date and continue until either you or Service Provider terminates it in accordance with the termination conditions set out below."
+    },
+    "2": {
+      "title": "Purpose",
+      "content": [
+        "The purpose of this agreement is to document the supports provided by Service Provider under your NDIS plan.",
+        {
+          "subpoints": [
+            "Support the independence and social and economic participation of people with disability",
+            "Enable people with disability to experience choice and control in the pursuit of their goals, and in the planning and delivery of supports."
+          ]
+        }
+      ]
+    },
+    "3": {
+      "title": "Definitions",
+      "definitions": [
+        {"term": "Service Provider", "meaning": "Service Provider, us or we means Service Provider"},
+        {"term": "Participant", "meaning": "Participant or you means the NDIS participant as identified on page 1 of this Agreement."},
+        {"term": "NDIA", "meaning": "National Disability Insurance Agency, which runs the NDIS."},
+        {"term": "NDIS", "meaning": "National Disability Insurance Scheme as established by the NDIS Act."},
+        {"term": "Services", "meaning": "The services and support you agree for us to provide and we agree to provide to you."}
+      ]
+    },
+    "4": {
+      "title": "Supports And Services",
+      "clauses": [
+        "Service Provider will provide you with services and supports identified in your NDIS Plan.",
+        "If your plan differs from the details recorded in the NDIS portal, Service Provider will provide the Services to you according to the details in the NDIS portal.",
+        "Together with you and your representative, Service Provider will determine the specific services we can offer to help you meet your objectives.",
+        "This will be done through initial consultations, your Participant intake form, this Agreement, and the support planning process.",
+        "The specifics of the services, appointment times, locations, and staff members involved will be agreed upon and set out in writing.",
+        "Your needs, goals, and preferences may change over time. In consultation with us, the services can be adapted and adjusted accordingly.",
+        "Further details are in the attached Schedule of Supports.",
+        {
+          "subclauses": [
+            "Assessment and review of your Plan by Service Provider.",
+            "Discussion of your Plan with the NDIA and its contractors.",
+            "Service Provider's discussions with service providers providing other Support Services.",
+            "Service Provider's right to claim travel time from your NDIS funds, to the extent permitted by NDIS rules and applicable laws.",
+            "Provision of services by Service Provider in line with the terms set out in this Agreement and your support plan.",
+            "To be available for interviews and record reviews by third party accreditation, auditors, and legislative bodies for random auditing purposes.",
+            "Compliance with the terms of Service Provider’s Policies including the Privacy and Information Management Policy."
+          ]
+        }
+      ]
+    },
+    "5": {
+      "title": "Consent",
+      "clauses": [
+        "Your informed consent is required for the Services provided by Service Provider.",
+        "You may withdraw your consent for any specific Service at any time, and the specific Service will cease immediately."
+      ]
+    },
+    "6": {
+      "title": "Service Provider’s Responsibilities",
+      "clauses": [
+        "Provide all supports under this agreement as outlined in Annexure A, in a manner that is timely and meets the Participant’s needs.",
+        "Review the provision of supports at least annually with the Participant.",
+        "Once agreed, provide supports that meet the Participant’s needs at the Participant’s preferred times.",
+        "Communicate clearly, openly and honestly in a timely manner.",
+        "Treat the Participant and the Participant’s representatives with courtesy and respect.",
+        "Consult the Participant on decisions about how supports are provided.",
+        "Give the Participant information about managing any complaints or disagreements and details of Service Provider’s cancellation policy.",
+        "Listen to the Participant’s feedback and resolve problems quickly.",
+        "Give the Participant a minimum of 24 hours notice if Service Provider has to change a scheduled appointment to provide supports.",
+        "Give the Participant the required notice if Service Provider needs to end this Service Agreement.",
+        "Protect the Participant’s privacy and confidential information.",
+        "Provide supports in a manner consistent with all relevant laws, including the NDIS Act 2013 and Australian Consumer Law.",
+        "Keep accurate records on the supports provided to the Participant.",
+        "Provide continuity in service in the event of unexpected staff absence or unavailability.",
+        "Communicate all adjustments and seek Participant’s consent for any alternative arrangements.",
+        "Refer to the Business Continuity Plan and Emergency and Disaster Management Policy for further guidance."
+      ]
+    },
+    "7": {
+      "title": "Responsibilities Of The Participant",
+      "clauses": [
+        "Inform Service Provider about how you wish the Services to be delivered.",
+        "Collaborate and actively participate in the development and review of your NDIS plan.",
+        "Provide accurate and up-to-date information for service delivery.",
+        "Communicate openly and honestly with Service Provider, and report any concerns.",
+        "Treat Service Provider’s staff and others with courtesy and respect.",
+        "Give required notice if you cannot attend a scheduled appointment.",
+        "Pay all invoices for agreed services promptly.",
+        "Notify Service Provider of any changes to your NDIS plan or status."
+      ]
+    },
+    "8": { "title": "Fees For Services", "clauses": [ "Service Provider will charge you for the Services.", "The prices for the specific services that we provide to you are set out in the NDIS Pricing Arrangements and Price Limits.", "The prices for all services are subject to modification in line with any changes to the NDIS Price Guide.", "Any adjustments in our charges will automatically correspond with the most recent NDIS Price Guide, reflecting the specific Services we provide to you.", "Additional expenses (i.e. things that are not funded under your Plan), are your responsibility and to be paid by you." ] },
+    "9": { "title": "Payments", "clauses": [ "Service Provider will seek payment for their provision of supports after the supports have been delivered.", { "subpoints": [ "Self Managed: You will be invoiced and must pay within seven days.", "NDIA Managed: We will claim payment directly from the NDIA.", "Plan Managed: We will claim payment from the Plan Management Provider." ] } ] },
+    "10": { "title": "Goods And Services Tax (Gst)", "clauses": [ "The supply of supports is considered GST-free under the NDIS.", "The Participant’s NDIS Plan is expected to remain in effect while the supports are provided.", "The Participant must notify the provider if their NDIS Plan changes or ends." ] },
+    "11": { "title": "Cancellation And No Show Policy", "clauses": [ "We may charge 100% for short notice cancellations or no-shows.", "We will only charge when allowed by the NDIS Price Guide and if no alternative work can be assigned.", "We will monitor cancellations and work with you to minimise them.", "To cancel outside office hours, please call the service provider’s phone number." ] },
+    "12": { "title": "Terminating This Agreement", "clauses": [ "Either party may terminate this Agreement with 28 days’ notice.", "Notice is not required in cases of serious breach.", { "subpoints": [ "Loss of NDIS funding or eligibility.", "Service Provider can no longer meet your needs.", "Lack of communication from you or your support network.", "You transfer to another provider.", "Your death.", "Failure to work towards agreed goals.", "Non-compliance with the agreement or policies.", "Unsafe or abusive behaviour towards staff.", "Unpaid fees or overdue invoices." ] } ] },
+    "13": { "title": "Complaints And Feedback", "clauses": [ "You can make complaints in person, by email, phone, website or post.", "Written complaints should use our Feedback and Complaints Form.", "Complaints will be handled per our Feedback and Complaints Policy.", "You can also contact the NDIS Commission to make a complaint." ] },
+    "14": { "title": "Emergency And Disaster Management", "clauses": [ "In emergencies or disasters, we will aim to maintain continuity of support.", "We may provide temporary staff or engage an agency.", "An Emergency Management Plan and Participant Emergency Plan will be in place." ] },
+    "15": { "title": "Daily Personal Activities (0107) With Sole Support Workers", "clauses": [ "We will comply with section 73G of the NDIS Act when sole workers are involved.", "We will conduct and share Participant Risk Assessments.", "Workers will be appropriately qualified and selected with your input.", "Supervision and performance checks will be conducted regularly.", "We will coordinate with other providers as needed, with your consent." ] }
+  }
+}
