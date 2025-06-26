@@ -29,3 +29,8 @@ This repository supports a multi-environment development workflow across the fol
 - All prototyping logic (Canvas or experimental workflows) should stay isolated or commented clearly.
 - Any files meant for public access (JSON, CSV, docs) must be added to the appropriate `/public` folder and deployed via Environment 3.
 - Internal scripts or handlers must be designed assuming SPA constraints unless noted.
+
+---
+
+## Core Functionality
+
