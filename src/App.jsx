@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 // --- Constants ---
 const NDIS_RATES_URL = 'https://hoursappcf.pages.dev/ndisrates2025.json';
@@ -18,6 +18,12 @@ const formatNumber = (num) => typeof num === 'number' && !isNaN(num) ? num.toLoc
 
 // --- Custom Hooks ---
 
+/**
+ * Custom hook for persisting state to window.localStorage.
+ * @param {string} key The key to store the value under in localStorage.
+ * @param {*} initialValue The initial value to use if nothing is in localStorage.
+ * @returns A stateful value, and a function to update it.
+ */
 const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
         try {
@@ -40,6 +46,10 @@ const useLocalStorage = (key, initialValue) => {
     return [storedValue, setStoredValue];
 };
 
+/**
+ * Custom hook to fetch NDIS rates data.
+ * @returns An object with ndisRates, isLoading, and error state.
+ */
 const useNdisRates = () => {
     const [ndisRates, setNdisRates] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -70,8 +80,13 @@ const useNdisRates = () => {
 
 // --- Core Calculation Logic ---
 
+/**
+ * The main calculation engine for the application.
+ * @param {object} inputs An object containing all user inputs.
+ * @returns An object with all calculated totals, breakdowns, and potential errors.
+ */
 const calculateAllTotals = (inputs) => {
-    const { fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates, budget, budgetMode } = inputs;
+    const { fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates } = inputs;
     
     const start = new Date(fromDate + 'T00:00:00');
     const end = new Date(toDate + 'T00:00:00');
@@ -165,10 +180,7 @@ const calculateAllTotals = (inputs) => {
     };
     
     const totalPay = Object.values(pay).reduce((sum, p) => sum + p, 0);
-
-    let monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 - start.getMonth() + end.getMonth();
-    if (end.getDate() < start.getDate() && monthsDiff > 0) monthsDiff--;
-
+    
     return {
         totalHours: roundUpToTwoDecimals(totalHours),
         totalPay: roundUpToTwoDecimals(totalPay),
@@ -188,14 +200,109 @@ const calculateAllTotals = (inputs) => {
         calculatedTotalSundays: totals.breakdown.sundays,
         calculatedTotalPublicHolidays: totals.breakdown.publicHolidays,
         calculatedFullWeeks: Math.floor(totals.breakdown.days / 7),
-        calculatedFullFortnights: Math.floor(totals.breakdown.days / 14),
-        calculatedFullMonths: Math.max(0, monthsDiff),
         error: null
     };
 };
 
 
 // --- Child Components ---
+
+const Section = ({ id, title, children, color = 'blue', className = '' }) => (
+    <div id={id} className={`p-4 sm:p-6 border border-${color}-200 rounded-lg bg-${color}-50 ${className}`}>
+        {title && <h3 className="text-xl font-semibold text-gray-800 mb-4">{title}</h3>}
+        {children}
+    </div>
+);
+
+const FloatingNav = ({ totalPay, totalHours }) => {
+    const navItems = [
+        { href: '#date-range-section', label: 'Date & Recurrence' },
+        { href: '#applicable-days', label: 'Applicable Days & Hours' },
+        { href: '#ndis-rates', label: 'NDIS Rate Finder' },
+        { href: '#hourly-rates', label: 'Manual Rates' },
+        { href: '#budget', label: 'Budget Information'},
+        { href: '#public-holidays', label: 'Public Holidays' },
+        { href: '#results', label: 'Results' },
+        { href: '#saved-quotes', label: 'Saved Quotes' },
+        { href: '#service-agreement', label: 'Service Agreement'},
+    ];
+    
+    useEffect(() => {
+        document.documentElement.style.scrollBehavior = 'smooth';
+        return () => { document.documentElement.style.scrollBehavior = 'auto'; };
+    }, []);
+
+    return (
+        <div className="fixed top-1/2 right-4 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm shadow-2xl rounded-xl p-4 border border-gray-200 w-64 hidden lg:block no-print">
+            <div className="text-center mb-4 pb-4 border-b">
+                <p className="text-sm font-semibold text-gray-600">Total Projected Pay</p>
+                <p className="text-2xl font-bold text-purple-700">${formatNumber(totalPay)}</p>
+                <p className="text-sm font-semibold text-gray-600 mt-2">Total Projected Hours</p>
+                <p className="text-2xl font-bold text-indigo-700">{formatNumber(totalHours)}</p>
+            </div>
+            <nav>
+                <ul className="space-y-2">
+                    {navItems.map(item => (
+                        <li key={item.href}>
+                            <a href={item.href} className="block text-center text-sm font-semibold text-gray-700 hover:text-indigo-600 hover:bg-gray-100 p-2 rounded-md transition-colors">
+                                {item.label}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
+        </div>
+    );
+};
+
+const DateRangeSection = ({ fromDate, toDate, setFromDate, setToDate, recurringType, setRecurringType }) => (
+    <Section id="date-range-section" title="Date Range & Recurring Type" color="blue">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div><label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">From Date:</label><input type="date" id="fromDate" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
+            <div><label htmlFor="toDate" className="block text-sm font-semibold text-gray-700 mb-1">To Date:</label><input type="date" id="toDate" value={toDate} onChange={e => setToDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
+        </div>
+        <div className="mt-4">
+            <label htmlFor="recurringType" className="block text-sm font-semibold text-gray-700 mb-1">Recurring Type:</label>
+            <select id="recurringType" value={recurringType} onChange={e => setRecurringType(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm bg-white">
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Fortnightly">Fortnightly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+            </select>
+        </div>
+    </Section>
+);
+
+const ApplicableDaysSection = ({ weeklyDays, handlers, suggestedDailyHours }) => (
+    <Section id="applicable-days" title="Applicable Days & Hours per Day" color="yellow">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Object.entries(weeklyDays).map(([day, { selected, hours, shift }]) => {
+                const isWeekday = !['Saturday', 'Sunday'].includes(day);
+                const suggestion = suggestedDailyHours[day]?.hours;
+                return (
+                    <div key={day} className="bg-white p-3 rounded-md shadow-sm border border-gray-200 space-y-2">
+                        <div className="flex items-center space-x-2">
+                            <input type="checkbox" id={`day-${day}`} checked={selected} onChange={() => handlers.handleWeeklyDayChange(day)} className="form-checkbox h-5 w-5 text-indigo-600 rounded"/>
+                            <label htmlFor={`day-${day}`} className="text-sm font-medium text-gray-700 flex-grow">{day}:</label>
+                            <input type="number" value={hours} onChange={(e) => handlers.handleWeeklyHoursChange(day, e.target.value)} onFocus={handlers.handleFocus} className="w-20 p-2 border border-gray-300 rounded-md text-sm text-center" min="0" max="24" placeholder="0"/>
+                        </div>
+                        {isWeekday && (
+                            <div className={`flex items-center justify-center space-x-2 text-xs transition-opacity ${!selected ? 'opacity-40' : 'opacity-100'}`}>
+                                <span className={`font-semibold ${shift === 'day' ? 'text-blue-600' : 'text-gray-400'}`}>Day</span>
+                                <button onClick={() => handlers.handleShiftChange(day)} disabled={!selected} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${shift === 'evening' ? 'bg-indigo-600' : 'bg-gray-300'} disabled:cursor-not-allowed`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${shift === 'evening' ? 'translate-x-6' : 'translate-x-1'}`}/></button>
+                                <span className={`font-semibold ${shift === 'evening' ? 'text-indigo-600' : 'text-gray-400'}`}>Evening</span>
+                            </div>
+                        )}
+                        {suggestion > 0 && selected && (
+                           <p className="text-xs text-center text-teal-600 font-semibold">Suggested: {formatNumber(suggestion)} hrs</p>
+                        )}
+                    </div>
+                )
+            })}
+        </div>
+    </Section>
+);
 
 const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], excludeKeywords = [], isLoading, value }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
@@ -258,97 +365,6 @@ const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], 
     );
 };
 
-const FloatingNav = ({ totalPay, totalHours }) => {
-    const navItems = [
-        { href: '#date-range-section', label: 'Date Range & Recurring Type', textColor: 'text-blue-700', hoverTextColor: 'hover:text-blue-800' },
-        { href: '#applicable-days', label: 'Applicable Days & Hours', textColor: 'text-yellow-800', hoverTextColor: 'hover:text-yellow-900' },
-        { href: '#ndis-rates', label: 'NDIS Rate Finder', textColor: 'text-sky-700', hoverTextColor: 'hover:text-sky-800' },
-        { href: '#hourly-rates', label: 'Manual Hourly Rates', textColor: 'text-green-700', hoverTextColor: 'hover:text-green-800' },
-        { href: '#public-holidays', label: 'Public Holidays', textColor: 'text-red-700', hoverTextColor: 'hover:text-red-800' },
-        { href: '#results', label: 'Results', textColor: 'text-indigo-600', hoverTextColor: 'hover:text-indigo-700' },
-        { href: '#saved-quotes', label: 'Saved Quotes', textColor: 'text-cyan-700', hoverTextColor: 'hover:text-cyan-800' },
-    ];
-    
-    useEffect(() => {
-        document.documentElement.style.scrollBehavior = 'smooth';
-        return () => { document.documentElement.style.scrollBehavior = 'auto'; };
-    }, []);
-
-    return (
-        <div className="fixed top-1/2 right-4 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm shadow-2xl rounded-xl p-4 border border-gray-200 w-64 hidden lg:block">
-            <div className="text-center mb-4 pb-4 border-b">
-                <p className="text-sm font-semibold text-gray-600">Total Projected Pay</p>
-                <p className="text-2xl font-bold text-purple-700">${formatNumber(totalPay)}</p>
-                <p className="text-sm font-semibold text-gray-600 mt-2">Total Projected Hours</p>
-                <p className="text-2xl font-bold text-indigo-700">{formatNumber(totalHours)}</p>
-            </div>
-            <nav>
-                <ul className="space-y-2">
-                    {navItems.map(item => (
-                        <li key={item.href}>
-                            <a href={item.href} className={`block text-center text-sm font-semibold ${item.textColor} ${item.hoverTextColor} hover:bg-gray-100 p-2 rounded-md transition-colors`}>
-                                {item.label}
-                            </a>
-                        </li>
-                    ))}
-                </ul>
-            </nav>
-        </div>
-    );
-};
-
-const Section = ({ id, title, children, color = 'blue' }) => (
-    <div id={id} className={`p-4 border border-${color}-200 rounded-lg bg-${color}-50`}>
-        {title && <h3 className="text-lg font-semibold text-gray-700 mb-3">{title}</h3>}
-        {children}
-    </div>
-);
-
-const DateRangeSection = ({ fromDate, toDate, setFromDate, setToDate, recurringType, setRecurringType }) => (
-    <Section id="date-range-section" color="blue">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div><label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">From Date:</label><input type="date" id="fromDate" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
-            <div><label htmlFor="toDate" className="block text-sm font-semibold text-gray-700 mb-1">To Date:</label><input type="date" id="toDate" value={toDate} onChange={e => setToDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
-        </div>
-         <div className="mt-4">
-            <label htmlFor="recurringType" className="block text-lg font-semibold text-gray-700 mb-2">Recurring Type:</label>
-            <select id="recurringType" value={recurringType} onChange={e => setRecurringType(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm bg-white">
-                <option value="Daily">Daily</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Fortnightly">Fortnightly</option>
-                <option value="Monthly">Monthly</option>
-                <option value="Quarterly">Quarterly</option>
-            </select>
-        </div>
-    </Section>
-);
-
-const ApplicableDaysSection = ({ weeklyDays, handlers }) => (
-    <Section id="applicable-days" title="Applicable Days & Hours per Day" color="yellow">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {Object.entries(weeklyDays).map(([day, { selected, hours, shift }]) => {
-                const isWeekday = !['Saturday', 'Sunday'].includes(day);
-                return (
-                    <div key={day} className="bg-white p-3 rounded-md shadow-sm border border-gray-200 space-y-2">
-                        <div className="flex items-center space-x-2">
-                            <input type="checkbox" id={`day-${day}`} checked={selected} onChange={() => handlers.handleWeeklyDayChange(day)} className="form-checkbox h-5 w-5 text-indigo-600 rounded"/>
-                            <label htmlFor={`day-${day}`} className="text-sm font-medium text-gray-700 flex-grow">{day}:</label>
-                            <input type="number" value={hours} onChange={(e) => handlers.handleWeeklyHoursChange(day, e.target.value)} onFocus={handlers.handleFocus} className="w-20 p-2 border border-gray-300 rounded-md text-sm text-center" min="0" max="24" placeholder="0"/>
-                        </div>
-                        {isWeekday && (
-                            <div className={`flex items-center justify-center space-x-2 text-xs transition-opacity ${!selected ? 'opacity-40' : 'opacity-100'}`}>
-                                <span className={`font-semibold ${shift === 'day' ? 'text-blue-600' : 'text-gray-400'}`}>Day</span>
-                                <button onClick={() => handlers.handleShiftChange(day)} disabled={!selected} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${shift === 'evening' ? 'bg-indigo-600' : 'bg-gray-300'} disabled:cursor-not-allowed`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${shift === 'evening' ? 'translate-x-6' : 'translate-x-1'}`}/></button>
-                                <span className={`font-semibold ${shift === 'evening' ? 'text-indigo-600' : 'text-gray-400'}`}>Evening</span>
-                            </div>
-                        )}
-                    </div>
-                )
-            })}
-        </div>
-    </Section>
-);
-
 const NdisRateFinderSection = ({ rates, ndisRates, isLoading, handleNdisRateSelect }) => {
     const rateFinderConfig = [
         { key: 'weekday', label: 'Weekday Day', include: [], exclude: ['evening', 'saturday', 'sunday', 'public holiday'] },
@@ -374,7 +390,7 @@ const NdisRateFinderSection = ({ rates, ndisRates, isLoading, handleNdisRateSele
                         />
                         {rates[config.key].number && (
                              <p className="text-xs font-mono text-gray-700 mt-1 px-1 select-all">
-                                {rates[config.key].number}
+                                 {rates[config.key].number}
                             </p>
                         )}
                     </div>
@@ -394,6 +410,47 @@ const ManualRatesSection = ({ rates, handlers }) => (
             <div><label className="block text-sm font-semibold mb-1">Public Holiday:</label><input type="number" value={rates.publicHoliday.rate} onChange={e => handlers.handleRateChange('publicHoliday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
         </div>
         <div className="mt-4 text-center"><button onClick={handlers.setAllRatesSame} className="px-6 py-2 bg-indigo-500 text-white font-bold rounded-md shadow-md hover:bg-indigo-600">Set All Rates Same as Weekday Day</button></div>
+    </Section>
+);
+
+const BudgetSection = ({ budget, setBudget, budgetMode, setBudgetMode, calculationResults, handlers }) => (
+    <Section id="budget" title="Budget Information" color="teal">
+        <div className="flex space-x-4 mb-4">
+            <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="lock" checked={budgetMode === 'lock'} onChange={() => setBudgetMode('lock')}/><span className="ml-2">Lock Budget</span></label>
+            <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="noBudget" checked={budgetMode === 'noBudget'} onChange={() => setBudgetMode('noBudget')}/><span className="ml-2">No Budget</span></label>
+        </div>
+        {budgetMode === 'lock' && (
+            <div className="animate-fade-in">
+                <label htmlFor="budget" className="block text-sm font-semibold text-gray-700 mb-1">Your Total Budget ($):</label>
+                <input type="number" id="budget" value={budget} onChange={(e) => setBudget(e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border border-gray-300 rounded-md" min="0" placeholder="0.00"/>
+                <div className="mt-4 text-gray-800">
+                    {calculationResults.totalPay > 0 ? (
+                        <>
+                            <p className="text-lg font-semibold">Budget vs. Projected: {' '}
+                                {calculationResults.totalPay > budget ? 
+                                    (<span className="text-red-600 font-bold">OVER by ${formatNumber(calculationResults.totalPay - budget)}</span>) : 
+                                    calculationResults.totalPay < budget ? 
+                                    (<span className="text-green-600 font-bold">UNDER by ${formatNumber(budget - calculationResults.totalPay)}</span>) : 
+                                    (<span className="text-blue-600 font-bold">ON BUDGET</span>)}
+                            </p>
+                            <div className="mt-4 text-center">
+                                <button onClick={handlers.applySuggestedHours} className="px-6 py-2 bg-teal-600 text-white font-bold rounded-md shadow-md hover:bg-teal-700">Apply Suggested Hours</button>
+                            </div>
+                        </>
+                    ) : (<p className="text-lg font-semibold">Enter rates and hours to get suggestions.</p>)}
+                </div>
+            </div>
+        )}
+    </Section>
+);
+
+const PublicHolidaysSection = ({ includePublicHolidays, setIncludePublicHolidays, publicHolidaysInput, setPublicHolidaysInput }) => (
+     <Section id="public-holidays" title="Public Holidays" color="red">
+        <div className="flex space-x-4 mb-4">
+            <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={includePublicHolidays} onChange={() => setIncludePublicHolidays(true)}/><span className="ml-2">Include</span></label>
+            <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={!includePublicHolidays} onChange={() => setIncludePublicHolidays(false)}/><span className="ml-2">Skip</span></label>
+        </div>
+        {includePublicHolidays && (<div><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (comma-separated, accepter-MM-DD):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={e => setPublicHolidaysInput(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md"></textarea></div>)}
     </Section>
 );
 
@@ -424,7 +481,8 @@ const ResultsSection = ({ results }) => (
     </div>
 );
 
-const SavedQuoteItem = ({ quote, onDelete }) => {
+const SavedQuoteItem = ({ quote, onDelete, onPrint }) => {
+    const quoteRef = useRef();
     const quoteDetails = useMemo(() => {
         if (!quote.results || !quote.rates) return [];
         return [
@@ -437,7 +495,7 @@ const SavedQuoteItem = ({ quote, onDelete }) => {
     }, [quote]);
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow-md border">
+        <div ref={quoteRef} className="bg-white p-4 rounded-lg shadow-md border printable-area">
             <div className="flex justify-between items-start gap-4">
                 <div className="flex-grow">
                     <p className="font-bold text-gray-800">{quote.description}</p>
@@ -445,7 +503,10 @@ const SavedQuoteItem = ({ quote, onDelete }) => {
                         <strong>Total Pay:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span>
                     </p>
                 </div>
-                <button onClick={() => onDelete(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1 flex-shrink-0">Delete</button>
+                <div className="flex gap-2 no-print">
+                    <button onClick={() => onPrint(quoteRef)} className="text-blue-500 hover:text-blue-700 font-semibold text-sm p-1">Print</button>
+                    <button onClick={() => onDelete(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1">Delete</button>
+                </div>
             </div>
             
             <div className="mt-4 pt-4 border-t overflow-x-auto">
@@ -487,16 +548,19 @@ const SavedQuoteItem = ({ quote, onDelete }) => {
 };
 
 const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteDescription, rates, results }) => (
-    <Section id="saved-quotes" title="Save Calculation as Quote" color="cyan">
+    <Section id="saved-quotes" title="Saved Quotes" color="cyan">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
             <input type="text" value={quoteDescription} onChange={e => setQuoteDescription(e.target.value)} placeholder="e.g., Standard weekly service" className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/>
             <button onClick={() => handlers.handleAddQuote({ rates, results })} disabled={!results.totalPay && !results.totalHours} className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400">Save Quote</button>
         </div>
         {savedQuotes.length > 0 && (
             <div className="mt-6 space-y-4">
-                <h4 className="text-md font-semibold text-gray-700">Saved Quotes:</h4>
+                <div className="flex justify-between items-center no-print">
+                    <h4 className="text-md font-semibold text-gray-700">Saved Quotes:</h4>
+                    <button onClick={handlers.handlePrintAll} className="px-4 py-2 bg-gray-600 text-white font-bold rounded-md shadow-md hover:bg-gray-700 text-sm">Print All</button>
+                </div>
                 {savedQuotes.map(quote => (
-                    <SavedQuoteItem key={quote.id} quote={quote} onDelete={handlers.handleDeleteQuote} />
+                    <SavedQuoteItem key={quote.id} quote={quote} onDelete={handlers.handleDeleteQuote} onPrint={handlers.handlePrintOne} />
                 ))}
             </div>
         )}
@@ -504,40 +568,69 @@ const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteD
 );
 
 const PeriodBreakdownSection = ({ results }) => (
-    <div className="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-xl text-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-3 text-indigo-700">Period Breakdown:</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Counted Days:</h3>
-                <p className="text-xl font-bold">{results.calculatedTotalDays}</p>
-            </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Counted Weekdays:</h3>
-                <p className="text-xl font-bold">{results.calculatedTotalWeekdays}</p>
-            </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Counted Saturdays:</h3>
-                <p className="text-xl font-bold">{results.calculatedTotalSaturdays}</p>
-            </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Counted Sundays:</h3>
-                <p className="text-xl font-bold">{results.calculatedTotalSundays}</p>
-            </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Public Hols:</h3>
-                <p className="text-xl font-bold">{results.calculatedTotalPublicHolidays}</p>
-            </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold">Full Weeks:</h3>
-                <p className="text-xl font-bold">{results.calculatedFullWeeks}</p>
-            </div>
+    <Section id="period-breakdown" title="Period Breakdown" color="gray">
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Counted Days:</h3> <p className="text-xl font-bold">{results.calculatedTotalDays}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Weekdays:</h3> <p className="text-xl font-bold">{results.calculatedTotalWeekdays}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Saturdays:</h3> <p className="text-xl font-bold">{results.calculatedTotalSaturdays}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Sundays:</h3> <p className="text-xl font-bold">{results.calculatedTotalSundays}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Public Hols:</h3> <p className="text-xl font-bold">{results.calculatedTotalPublicHolidays}</p> </div>
+            <div className="p-3 bg-white rounded-lg shadow-sm text-center"> <h3 className="text-sm font-semibold">Full Weeks:</h3> <p className="text-xl font-bold">{results.calculatedFullWeeks}</p> </div>
         </div>
-    </div>
+    </Section>
 );
+
+const ServiceAgreementSection = ({ info, setInfo }) => {
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setInfo(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleFundingTypeChange = (e) => {
+        const { value, checked } = e.target;
+        setInfo(prev => {
+            const newFundingType = checked
+                ? [...prev.fundingType, value]
+                : prev.fundingType.filter(type => type !== value);
+            return { ...prev, fundingType: newFundingType };
+        });
+    };
+
+    return (
+        <Section id="service-agreement" title="Generate Service Agreement" color="purple">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input name="participantName" value={info.participantName} onChange={handleInputChange} placeholder="Participant's Name" className="w-full p-3 border rounded-md"/>
+                <input name="ndisNumber" value={info.ndisNumber} onChange={handleInputChange} placeholder="NDIS Number" className="w-full p-3 border rounded-md"/>
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Review Date:</label>
+                    <input type="date" name="reviewDate" value={info.reviewDate} onChange={handleInputChange} className="w-full p-3 border rounded-md"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Funding Type:</label>
+                    <div className="flex flex-wrap gap-4 mt-2">
+                        <label className="inline-flex items-center"><input type="checkbox" className="form-checkbox" value="Self Funded" checked={info.fundingType.includes("Self Funded")} onChange={handleFundingTypeChange} /> <span className="ml-2">Self Funded</span></label>
+                        <label className="inline-flex items-center"><input type="checkbox" className="form-checkbox" value="Plan Managed" checked={info.fundingType.includes("Plan Managed")} onChange={handleFundingTypeChange} /> <span className="ml-2">Plan Managed</span></label>
+                        <label className="inline-flex items-center"><input type="checkbox" className="form-checkbox" value="NDIA Managed" checked={info.fundingType.includes("NDIA Managed")} onChange={handleFundingTypeChange} /> <span className="ml-2">NDIA Managed</span></label>
+                    </div>
+                </div>
+
+                {info.fundingType.includes('Plan Managed') && (
+                    <>
+                        <input name="planManagerName" value={info.planManagerName} onChange={handleInputChange} placeholder="Plan Manager's Name" className="w-full p-3 border rounded-md md:col-span-1"/>
+                        <input type="email" name="planManagerEmail" value={info.planManagerEmail} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md md:col-span-1"/>
+                    </>
+                )}
+            </div>
+            <div className="text-center mt-6">
+                 <button className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print">Generate Agreement Document</button>
+            </div>
+        </Section>
+    );
+};
 
 
 // --- Main App Component ---
-const App = () => {
+function App() {
     // --- State ---
     const [fromDate, setFromDate] = useState(getTodayDate());
     const [toDate, setToDate] = useState(getOneYearFromToday());
@@ -545,21 +638,25 @@ const App = () => {
     const [weeklyDays, setWeeklyDays] = useState({
         Monday: { selected: false, hours: '', shift: 'day' }, Tuesday: { selected: false, hours: '', shift: 'day' },
         Wednesday: { selected: false, hours: '', shift: 'day' }, Thursday: { selected: false, hours: '', shift: 'day' },
-        Friday: { selected: false, hours: '', shift: 'day' }, Saturday: { selected: false, hours: '', shift: 'day' },
-        Sunday: { selected: false, hours: '', shift: 'day' },
+        Friday: { selected: false, hours: '', shift: 'day' }, Saturday: { selected: false, hours: '' },
+        Sunday: { selected: false, hours: '' },
     });
     const [rates, setRates] = useState({
-        weekday: { name: '', rate: '', number: '' },
-        weekdayEvening: { name: '', rate: '', number: '' },
-        saturday: { name: '', rate: '', number: '' },
-        sunday: { name: '', rate: '', number: '' },
+        weekday: { name: '', rate: '', number: '' }, weekdayEvening: { name: '', rate: '', number: '' },
+        saturday: { name: '', rate: '', number: '' }, sunday: { name: '', rate: '', number: '' },
         publicHoliday: { name: '', rate: '', number: '' }
     });
+    const [budgetMode, setBudgetMode] = useState('noBudget');
+    const [budget, setBudget] = useState('');
     const [includePublicHolidays, setIncludePublicHolidays] = useState(true);
     const [publicHolidaysInput, setPublicHolidaysInput] = useState(DEFAULT_QLD_PUBLIC_HOLIDAYS);
     const [quoteDescription, setQuoteDescription] = useState('');
     const [savedQuotes, setSavedQuotes] = useLocalStorage('savedQuotes', []);
     const [error, setError] = useState('');
+    const [serviceAgreementInfo, setServiceAgreementInfo] = useState({
+        participantName: '', ndisNumber: '', reviewDate: toDate,
+        fundingType: [], planManagerName: '', planManagerEmail: ''
+    });
 
     // --- Data Fetching ---
     const { ndisRates, isLoading: isLoadingRates, error: rateError } = useNdisRates();
@@ -569,13 +666,26 @@ const App = () => {
         fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates
     }), [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates]);
     
-    useEffect(() => {
-        if (calculationResults.error) {
-            setError(calculationResults.error);
-        } else {
-            setError(''); 
+    const suggestedDailyHours = useMemo(() => {
+        let newSuggested = {};
+        if (budgetMode === 'lock' && budget > 0 && calculationResults.totalPay > 0) {
+            const hourScalingFactor = budget / calculationResults.totalPay;
+            Object.entries(weeklyDays).forEach(([dayName, { selected, hours }]) => {
+                const currentHours = parseFloat(hours) || 0;
+                newSuggested[dayName] = { hours: selected ? currentHours * hourScalingFactor : 0 };
+            });
         }
+        return newSuggested;
+    }, [budget, budgetMode, weeklyDays, calculationResults.totalPay]);
+    
+    useEffect(() => {
+        if (calculationResults.error) setError(calculationResults.error);
+        else setError(''); 
     }, [calculationResults.error]);
+
+    useEffect(() => {
+        setServiceAgreementInfo(prev => ({ ...prev, reviewDate: toDate }));
+    }, [toDate]);
     
     // --- Handlers ---
     const handleFocus = (event) => event.target.select();
@@ -585,7 +695,7 @@ const App = () => {
         handleShiftChange: (day) => setWeeklyDays(p => ({ ...p, [day]: { ...p[day], shift: p[day].shift === 'day' ? 'evening' : 'day' } })),
         handleWeeklyHoursChange: (day, value) => {
              if (value === '' || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0 && parseFloat(value) <= 24)) {
-                setWeeklyDays(p => ({ ...p, [day]: { ...p[day], hours: value } }));
+                 setWeeklyDays(p => ({ ...p, [day]: { ...p[day], hours: value } }));
              }
         },
         handleFocus,
@@ -594,18 +704,33 @@ const App = () => {
     const rateHandlers = {
         handleRateChange: (rateName, value) => {
             if (value === '' || !isNaN(parseFloat(value))) {
-                setRates(prev => ({ ...prev, [rateName]: { name: '', number: '', rate: value } }));
+                setRates(prev => ({ ...prev, [rateName]: { ...prev[rateName], rate: value } }));
             }
         },
         setAllRatesSame: () => {
             const baseRate = rates.weekday.rate;
-            const newRates = {};
-            for (const key in rates) {
-                newRates[key] = { ...rates[key], rate: baseRate };
-            }
-            setRates(newRates);
+            setRates(prev => {
+                const newRates = {};
+                for (const key in prev) { newRates[key] = { ...prev[key], rate: baseRate }; }
+                return newRates;
+            });
         },
         handleFocus,
+    };
+    
+    const budgetHandlers = {
+        applySuggestedHours: () => {
+             setWeeklyDays(p => {
+                 const updatedDays = { ...p };
+                 for (const day in suggestedDailyHours) {
+                     if (updatedDays[day].selected) {
+                         updatedDays[day] = { ...updatedDays[day], hours: formatNumber(suggestedDailyHours[day].hours) };
+                     }
+                 }
+                 return updatedDays;
+             });
+        },
+        handleFocus
     };
 
     const handleNdisRateSelect = useCallback((rateType, item) => {
@@ -634,9 +759,7 @@ const App = () => {
                     const currentItemName = rateItem["Support Item Name"].toLowerCase();
                     return currentItemName.includes(baseName) && keywords.some(kw => currentItemName.includes(kw));
                 });
-                if (foundItem) {
-                    newRatesToUpdate[key] = getInfoFromItem(foundItem);
-                }
+                if (foundItem) { newRatesToUpdate[key] = getInfoFromItem(foundItem); }
             }
             setRates(prev => ({ ...prev, ...newRatesToUpdate }));
         } else {
@@ -644,16 +767,26 @@ const App = () => {
         }
     }, [ndisRates]);
 
+    const printHandlers = {
+        handlePrintAll: () => window.print(),
+        handlePrintOne: (quoteRef) => {
+             const printContents = quoteRef.current.innerHTML;
+             const originalContents = document.body.innerHTML;
+             document.body.innerHTML = printContents;
+             window.print();
+             document.body.innerHTML = originalContents;
+             window.location.reload(); // To restore event listeners
+        }
+    };
+    
     const quoteHandlers = {
+        ...printHandlers,
         handleAddQuote: ({ rates, results }) => {
             if (!quoteDescription.trim()) { setError('Please enter a description for the quote.'); return; }
             const newQuote = { 
-                id: crypto.randomUUID(), 
-                description: quoteDescription.trim(), 
-                totalPay: results.totalPay, 
-                totalHours: results.totalHours,
-                rates,
-                results
+                id: crypto.randomUUID(), description: quoteDescription.trim(), 
+                totalPay: results.totalPay, totalHours: results.totalHours,
+                rates, results
             };
             setSavedQuotes(p => [...p, newQuote]);
             setQuoteDescription('');
@@ -663,29 +796,41 @@ const App = () => {
     };
     
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8 font-sans antialiased text-gray-800 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8 font-sans antialiased text-gray-800">
+            <style>{`
+                @media print {
+                    body { margin: 1.5rem; }
+                    .no-print { display: none !important; }
+                    .printable-area {
+                        display: block !important;
+                        page-break-inside: avoid;
+                        box-shadow: none !important;
+                        border: 1px solid #ccc !important;
+                    }
+                    main { box-shadow: none !important; }
+                }
+            `}</style>
             <FloatingNav totalPay={calculationResults.totalPay} totalHours={calculationResults.totalHours} />
-            <main className="max-w-4xl w-full bg-white shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-center text-indigo-700 mb-8">
-                    Hours & Pay Forecasting App
-                </h1>
+            <main className="max-w-4xl w-full mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
+                <div className="text-center no-print">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-700">Hours & Pay Forecasting App</h1>
+                    <p className="mt-2 text-gray-600">A tool for NDIS planning and quoting.</p>
+                </div>
                 
-                {error && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md"><strong className="font-bold">Error: </strong><span className="ml-2">{error}</span></div>)}
-                {rateError && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md"><strong className="font-bold">Rate Loading Error: </strong><span className="ml-2">{rateError}</span></div>)}
+                {error && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Error: </strong><span className="ml-2">{error}</span></div>)}
+                {rateError && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Rate Loading Error: </strong><span className="ml-2">{rateError}</span></div>)}
                 
-                <DateRangeSection fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} recurringType={recurringType} setRecurringType={setRecurringType} />
-                <ApplicableDaysSection weeklyDays={weeklyDays} handlers={dayHandlers} />
-                <NdisRateFinderSection rates={rates} ndisRates={ndisRates} isLoading={isLoadingRates} handleNdisRateSelect={handleNdisRateSelect} />
-                <ManualRatesSection rates={rates} handlers={rateHandlers} />
-                <Section id="public-holidays" title="Public Holidays" color="red">
-                    <div className="flex space-x-4 mb-4">
-                        <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={includePublicHolidays} onChange={() => setIncludePublicHolidays(true)}/><span className="ml-2">Include</span></label>
-                        <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={!includePublicHolidays} onChange={() => setIncludePublicHolidays(false)}/><span className="ml-2">Skip</span></label>
-                    </div>
-                    {includePublicHolidays && (<div><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (comma-separated, accepter-MM-DD):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={e => setPublicHolidaysInput(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md"></textarea></div>)}
-                </Section>
+                <div className="space-y-6 no-print">
+                    <DateRangeSection fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} recurringType={recurringType} setRecurringType={setRecurringType} />
+                    <ApplicableDaysSection weeklyDays={weeklyDays} handlers={dayHandlers} suggestedDailyHours={suggestedDailyHours}/>
+                    <NdisRateFinderSection rates={rates} ndisRates={ndisRates} isLoading={isLoadingRates} handleNdisRateSelect={handleNdisRateSelect} />
+                    <ManualRatesSection rates={rates} handlers={rateHandlers} />
+                    <BudgetSection budget={budget} setBudget={setBudget} budgetMode={budgetMode} setBudgetMode={setBudgetMode} calculationResults={calculationResults} handlers={budgetHandlers} />
+                    <PublicHolidaysSection includePublicHolidays={includePublicHolidays} setIncludePublicHolidays={setIncludePublicHolidays} publicHolidaysInput={publicHolidaysInput} setPublicHolidaysInput={setPublicHolidaysInput} />
+                </div>
                 
                 <ResultsSection results={calculationResults} />
+                <PeriodBreakdownSection results={calculationResults} />
 
                 <SavedQuotesSection 
                     savedQuotes={savedQuotes} 
@@ -696,10 +841,12 @@ const App = () => {
                     results={calculationResults} 
                 />
 
-                <PeriodBreakdownSection results={calculationResults} />
+                <div className="no-print">
+                   <ServiceAgreementSection info={serviceAgreementInfo} setInfo={setServiceAgreementInfo} />
+                </div>
             </main>
         </div>
     );
-};
+}
 
 export default App;
