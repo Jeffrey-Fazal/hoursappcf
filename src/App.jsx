@@ -5,6 +5,12 @@ const NDIS_RATES_URL = 'https://hoursappcf.pages.dev/ndisrates2025.json';
 const SERVICE_AGREEMENT_URL = 'https://hoursappcf.pages.dev/sa-sjon-generic.json';
 const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19,2025-04-20,2025-04-21,2025-04-25,2025-05-05,2025-08-13,2025-10-06,2025-12-24,2025-12-25,2025-12-26';
 const WEEK_DAYS_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const PROVIDER_DETAILS = {
+    name: 'Piovotal Connect Pty Ltd',
+    abn: '32674328182',
+    email: 'info@pivotalconnect.com.au',
+    address: 'Parcel Collect 10302 37732, Shop 32 357, Redbank Plains Road, Redbank Plains, 4301, QLD'
+};
 
 // --- Helper Functions ---
 const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -449,17 +455,35 @@ const PeriodBreakdownSection = ({ results }) => (
 );
 
 const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
-    const handleInputChange = (e) => { const { name, value } = e.target; setInfo(prev => ({ ...prev, [name]: value })); };
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        if (name.includes('.')) {
+            const [outerKey, innerKey] = name.split('.');
+            setInfo(prev => ({
+                ...prev,
+                [outerKey]: {
+                    ...prev[outerKey],
+                    [innerKey]: value
+                }
+            }));
+        } else {
+            setInfo(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
     const handleFundingTypeChange = (e) => {
         const { value, checked } = e.target;
         setInfo(prev => ({ ...prev, fundingType: checked ? [...prev.fundingType, value] : prev.fundingType.filter(type => type !== value) }));
     };
+
     return (
         <Section id="service-agreement" title="Generate Service Agreement" color="purple">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input name="participantName" value={info.participantName} onChange={handleInputChange} placeholder="Participant's Name" className="w-full p-3 border rounded-md"/>
+                <input name="participantAddress" value={info.participantAddress} onChange={handleInputChange} placeholder="Participant's Address" className="w-full p-3 border rounded-md"/>
                 <input name="ndisNumber" value={info.ndisNumber} onChange={handleInputChange} placeholder="NDIS Number" className="w-full p-3 border rounded-md"/>
-                <div><label className="block text-sm font-semibold text-gray-700 mb-1">Review Date:</label><input type="date" name="reviewDate" value={info.reviewDate} onChange={handleInputChange} className="w-full p-3 border rounded-md"/></div>
+                <input name="representativeName" value={info.representativeName} onChange={handleInputChange} placeholder="Representative's Name (if any)" className="w-full p-3 border rounded-md"/>
+                <div><label className="block text-sm font-semibold text-gray-700 mb-1">Agreement Date:</label><input type="date" name="agreementDate" value={info.agreementDate} onChange={handleInputChange} className="w-full p-3 border rounded-md"/></div>
                 <div><label className="block text-sm font-semibold text-gray-700 mb-1">Funding Type:</label>
                     <div className="flex flex-wrap gap-4 mt-2">
                         <label className="inline-flex items-center"><input type="checkbox" className="form-checkbox" value="Self Funded" checked={info.fundingType.includes("Self Funded")} onChange={handleFundingTypeChange} /><span className="ml-2">Self Funded</span></label>
@@ -467,7 +491,12 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
                         <label className="inline-flex items-center"><input type="checkbox" className="form-checkbox" value="NDIA Managed" checked={info.fundingType.includes("NDIA Managed")} onChange={handleFundingTypeChange} /><span className="ml-2">NDIA Managed</span></label>
                     </div>
                 </div>
-                {info.fundingType.includes('Plan Managed') && (<><input name="planManagerName" value={info.planManagerName} onChange={handleInputChange} placeholder="Plan Manager's Name" className="w-full p-3 border rounded-md md:col-span-1"/><input type="email" name="planManagerEmail" value={info.planManagerEmail} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md md:col-span-1"/></>)}
+                {info.fundingType.includes('Plan Managed') && (<>
+                    <input name="planManager.name" value={info.planManager.name} onChange={handleInputChange} placeholder="Plan Manager's Name" className="w-full p-3 border rounded-md"/>
+                    <input name="planManager.address" value={info.planManager.address} onChange={handleInputChange} placeholder="Plan Manager's Address" className="w-full p-3 border rounded-md"/>
+                    <input name="planManager.phone" value={info.planManager.phone} onChange={handleInputChange} placeholder="Plan Manager's Phone" className="w-full p-3 border rounded-md"/>
+                    <input type="email" name="planManager.email" value={info.planManager.email} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md"/>
+                </>)}
             </div>
             <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">{isLoading ? 'Loading Agreement...' : 'Generate Agreement Document'}</button></div>
         </Section>
@@ -498,13 +527,13 @@ function App() {
     const [savedQuotes, setSavedQuotes] = useLocalStorage('savedQuotes', []);
     const [error, setError] = useState('');
     const [serviceAgreementInfo, setServiceAgreementInfo] = useState({
-        participantName: '', ndisNumber: '', reviewDate: toDate,
-        fundingType: [], planManagerName: '', planManagerEmail: ''
+        participantName: '', participantAddress: '', ndisNumber: '', agreementDate: getTodayDate(), representativeName: '',
+        fundingType: [], planManager: { name: '', address: '', phone: '', email: '' }
     });
 
     // --- Data Fetching ---
     const { data: ndisRates, isLoading: isLoadingRates, error: rateError } = useFetchData(NDIS_RATES_URL, []);
-    const { data: agreementContent, isLoading: isLoadingAgreement, error: agreementError } = useFetchData(SERVICE_AGREEMENT_URL);
+    const { data: agreementFileContent, isLoading: isLoadingAgreement, error: agreementError } = useFetchData(SERVICE_AGREEMENT_URL);
     
     // --- Calculations ---
     const calculationResults = useMemo(() => calculateAllTotals({ fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates }), [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates]);
@@ -521,7 +550,6 @@ function App() {
     }, [budget, budgetMode, weeklyDays, calculationResults.totalPay]);
     
     useEffect(() => { if (calculationResults.error) setError(calculationResults.error); else setError(''); }, [calculationResults.error]);
-    useEffect(() => { setServiceAgreementInfo(prev => ({ ...prev, reviewDate: toDate })); }, [toDate]);
     
     // --- Handlers ---
     const handleFocus = (event) => event.target.select();
@@ -556,46 +584,93 @@ function App() {
     }, [ndisRates]);
     
     const handleGenerateAgreement = () => {
-        const { participantName, ndisNumber, reviewDate, fundingType, planManagerName, planManagerEmail } = serviceAgreementInfo;
-        if (!participantName || savedQuotes.length === 0) { setError("Provide a participant name and save at least one quote."); window.scrollTo(0, 0); return; }
+        if (!serviceAgreementInfo.participantName || savedQuotes.length === 0) {
+            setError("Please provide a participant name and save at least one quote before generating an agreement.");
+            window.scrollTo(0, 0);
+            return;
+        }
 
-        const renderContent = (content) => {
-            if (Array.isArray(content)) {
-                return content.map(item => {
-                    if (typeof item === 'string') return `<p>${item.replace('from date', fromDate)}</p>`;
-                    if (item.subpoints) return `<ul>${item.subpoints.map(sp => `<li>${sp}</li>`).join('')}</ul>`;
-                    return '';
-                }).join('');
-            }
-            return `<p>${content.replace('from date', fromDate)}</p>`;
+        if (!agreementFileContent || !agreementFileContent.agreementContent) {
+            setError("Service agreement template could not be loaded or is in the wrong format.");
+            return;
+        }
+
+        const dataMap = {
+            '{{participantName}}': serviceAgreementInfo.participantName,
+            '{{participantAddress}}': serviceAgreementInfo.participantAddress,
+            '{{agreementDate}}': serviceAgreementInfo.agreementDate,
+            '{{fundingType}}': serviceAgreementInfo.fundingType.join(', '),
+            '{{planManager.name}}': serviceAgreementInfo.planManager.name,
+            '{{planManager.address}}': serviceAgreementInfo.planManager.address,
+            '{{planManager.phone}}': serviceAgreementInfo.planManager.phone,
+            '{{planManager.email}}': serviceAgreementInfo.planManager.email,
+            '{{representativeName}}': serviceAgreementInfo.representativeName,
+            '{{participantSignature}}': '_________________________',
+            '{{representativeSignature}}': '_________________________',
         };
 
-        const agreementHtml = agreementContent ? Object.values(agreementContent.agreement).map(section => {
-            let sectionHtml = `<h2>${section.title}</h2>`;
-            if (section.content) sectionHtml += renderContent(section.content);
-            if (section.definitions) sectionHtml += `<ul>${section.definitions.map(d => `<li><strong>${d.term}:</strong> ${d.meaning}</li>`).join('')}</ul>`;
-            if (section.clauses) {
-                section.clauses.forEach(clause => {
-                    if (typeof clause === 'string') sectionHtml += `<p>${clause}</p>`;
-                    if (clause.subpoints) sectionHtml += `<ul>${clause.subpoints.map(sp => `<li>${sp}</li>`).join('')}</ul>`;
-                });
-            }
-            return sectionHtml;
-        }).join('') : '<p>Agreement content could not be loaded.</p>';
+        const replacePlaceholders = (text) => {
+            if (typeof text !== 'string') return text || '';
+            return text.replace(/{{(.*?)}}/g, (match) => dataMap[match] || match);
+        }
 
+        const renderSection = (section) => {
+            let html = `<h2>${section.title}</h2>`;
+            if (section.content) {
+                html += `<p>${replacePlaceholders(section.content).replace(/\n/g, '<br>')}</p>`;
+            }
+            if (section.points) {
+                html += `<ul>${section.points.map(p => {
+                    if (typeof p === 'string') return `<li>${replacePlaceholders(p)}</li>`;
+                    let pointHtml = `<li>${replacePlaceholders(p.heading || p.intro || '')}`;
+                    if(p.subpoints) { pointHtml += `<ul>${p.subpoints.map(sp => `<li>${replacePlaceholders(sp)}</li>`).join('')}</ul>`; }
+                    if(p.methods) { pointHtml += `<ul>${p.methods.map(m => `<li>${replacePlaceholders(m)}</li>`).join('')}</ul>`; }
+                    if(p.ndisMethods) { pointHtml += `<ul>${p.ndisMethods.map(m => `<li>${replacePlaceholders(m)}</li>`).join('')}</ul>`; }
+                    if (p.text) { pointHtml += `<p>${replacePlaceholders(p.text)}</p>` }
+                    pointHtml += '</li>';
+                    return pointHtml;
+                }).join('')}</ul>`;
+            }
+            if (section.definitions) {
+                html += `<ul>${section.definitions.map(d => `<li><strong>${replacePlaceholders(d.term)}:</strong> ${replacePlaceholders(d.definition)}</li>`).join('')}</ul>`;
+            }
+            if (section.fundingOptions) {
+                 html += section.fundingOptions.map(fo => `<p><strong>${fo.id}:</strong> ${replacePlaceholders(fo.text)}</p>`).join('');
+                 if(serviceAgreementInfo.fundingType.includes('Plan Managed') && section.planManagerSection) {
+                    html += `<p>${replacePlaceholders(section.planManagerSection.intro)}</p><ul>${section.planManagerSection.fields.map(f => `<li><strong>${f.label}:</strong> ${replacePlaceholders(f.value)}</li>`).join('')}</ul>`;
+                 }
+            }
+            if(section.signatureSection) {
+                html += `<p>${replacePlaceholders(section.signatureSection.executionStatement)}</p>`;
+                html += `<div class="signatures">${section.signatureSection.parties.map(party => {
+                    let signatureBlock = `<div class="signature-box"><h4>${replacePlaceholders(party.heading)}</h4><br/><br/>`;
+                    if (party.party === 'provider') {
+                         signatureBlock += `<p>Signature: _________________________</p><p>Name: _________________________</p>`;
+                    } else {
+                         signatureBlock += `<p>Signature: ${replacePlaceholders(party.signature)}</p><p>Name: ${replacePlaceholders(party.printedName)}</p>`;
+                    }
+                    signatureBlock += '</div>';
+                    return signatureBlock;
+                }).join('')}</div>`;
+            }
+
+            return html;
+        }
+
+        const agreementHtml = agreementFileContent.agreementContent.sections.map(renderSection).join('<hr>');
         const quotesHtml = savedQuotes.map(quote => {
             const quoteDetails = [
                 { label: 'Weekday Day', hours: quote.results.weekdayHours, pay: quote.results.weekdayPay, rateInfo: quote.rates.weekday }, { label: 'Weekday Evening', hours: quote.results.weekdayEveningHours, pay: quote.results.weekdayEveningPay, rateInfo: quote.rates.weekdayEvening },
                 { label: 'Saturday', hours: quote.results.saturdayHours, pay: quote.results.saturdayPay, rateInfo: quote.rates.saturday }, { label: 'Sunday', hours: quote.results.sundayHours, pay: quote.results.sundayPay, rateInfo: quote.rates.sunday },
                 { label: 'Public Holiday', hours: quote.results.publicHolidayHours, pay: quote.results.publicHolidayPay, rateInfo: quote.rates.publicHoliday },
             ].filter(d => d.hours > 0 && d.rateInfo);
-            return `<div class="quote-section"><h3>Quote: ${quote.description}</h3><p><strong>Total Pay:</strong> $${formatNumber(quote.totalPay)} | <strong>Total Hours:</strong> ${formatNumber(quote.totalHours)}</p><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Hours</th><th>Total</th></tr></thead><tbody>${quoteDetails.map(d => `<tr><td>${d.label}</td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3" class="text-right"><strong>Grand Total:</strong></td><td class="text-right"><strong>${formatNumber(quote.totalHours)}</strong></td><td class="text-right"><strong>$${formatNumber(quote.totalPay)}</strong></td></tr></tfoot></table></div>`;
+            return `<div class="quote-section"><h3>Schedule of Supports</h3><h4>Quote: ${quote.description}</h4><p><strong>Total Pay:</strong> $${formatNumber(quote.totalPay)} | <strong>Total Hours:</strong> ${formatNumber(quote.totalHours)}</p><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Hours</th><th>Total</th></tr></thead><tbody>${quoteDetails.map(d => `<tr><td>${d.label}</td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3" class="text-right"><strong>Grand Total:</strong></td><td class="text-right"><strong>${formatNumber(quote.totalHours)}</strong></td><td class="text-right"><strong>$${formatNumber(quote.totalPay)}</strong></td></tr></tfoot></table></div>`;
         }).join('');
-
-        const totalAgreementPay = savedQuotes.reduce((sum, q) => sum + q.totalPay, 0);
-
+        
+        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}.details-grid div{break-inside:avoid}.quote-section{margin-bottom:2rem;break-inside:avoid}.signatures{margin-top:2rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}.signature-box h4{white-space:pre-wrap}.signature-box p{margin-top:2rem}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${agreementHtml.replace('<h2>Schedule of Supports</h2>', quotesHtml)}</body></html>`
+        
         const newWindow = window.open('', '_blank');
-        newWindow.document.write(`<html><head><title>Service Agreement - ${participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}.details-grid div{break-inside:avoid}.quote-section{margin-bottom:2rem;break-inside:avoid}.signatures{margin-top:4rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}.signature-box{border-top:1px solid #333;padding-top:.5rem}</style></head><body><h1>Service Agreement</h1><h2>Parties</h2><div class="details-grid"><div><h3>Participant Details</h3><p><strong>Name:</strong> ${participantName||'(Not Provided)'}</p><p><strong>NDIS Number:</strong> ${ndisNumber||'(Not Provided)'}</p><p><strong>Plan Review Date:</strong> ${reviewDate||'(Not Provided)'}</p></div><div><h3>Provider Details</h3><p><strong>Name:</strong> Piovotal Connect Pty Ltd</p><p><strong>ABN:</strong>32674328182</p><p><strong>Email:</strong> info@pivotalconnect.com.au</p></div></div><h2>Schedule of Supports</h2><p>This agreement covers the supports outlined in the quote(s) below, with a total value of <strong>$${formatNumber(totalAgreementPay)}</strong>.</p>${quotesHtml}${agreementHtml}<div class="signatures"><div><div class="signature-box">Participant Signature</div><p><strong>Name:</strong> ${participantName||'____________________'}</p><p><strong>Date:</strong> ____________________</p></div><div><div class="signature-box">Provider Signature</div><p><strong>Name:</strong> ____________________</p><p><strong>Date:</strong> ____________________</p></div></div></body></html>`);
+        newWindow.document.write(finalHtml);
         newWindow.document.close();
     };
 

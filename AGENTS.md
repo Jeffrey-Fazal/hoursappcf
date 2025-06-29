@@ -147,3 +147,76 @@ To provide transparency and allow users to verify the calculations, this section
 ## **2\. Functions**
 
 *This section will detail the technical implementation, including code references, helper functions, and component logic. This will be populated once the code is provided.*
+
+---
+
+Placeholder text is used in sa-sjon-generic.json so that the user can put custom infomation and it'll appear when it is generated
+
+Primary Agreement Placeholders
+These are the essential details for each new agreement.
+
+{{participantName}}
+
+Purpose: The full name of the NDIS participant.
+
+Used In: The "Parties to the Agreement" section and the participant's signature block.
+
+{{participantAddress}}
+
+Purpose: The full street address of the participant.
+
+Used In: The "Parties to the Agreement" section.
+
+{{agreementDate}}
+
+Purpose: The date the agreement is executed and commences.
+
+Used In: The commencement clause ("This Service Agreement will commence on...") and the signature block ("Executed as an agreement on...").
+
+Funding Placeholders
+This section defines how the services will be paid for.
+
+{{fundingType}}
+
+Purpose: To specify which of the three funding options is selected. Your application should use this to control which checkbox is ticked.
+
+Expected Values: "Self Managed", "NDIA Managed", or "Plan Managed".
+
+{{planManager.name}}
+
+Purpose: The name of the Plan Management company.
+
+Note: This is only required if {{fundingType}} is set to "Plan Managed".
+
+{{planManager.address}}
+
+Purpose: The address of the Plan Management company.
+
+Note: This is only required if {{fundingType}} is set to "Plan Managed".
+
+{{planManager.phone}}
+
+Purpose: The contact phone number for the Plan Manager.
+
+Note: This is only required if {{fundingType}} is set to "Plan Managed".
+
+{{planManager.email}}
+
+Purpose: The contact email for the Plan Manager (for invoices, etc.).
+
+Note: This is only required if {{fundingType}} is set to "Plan Managed".
+
+Signature Placeholders
+These placeholders are for the individuals signing the agreement.
+
+{{participantSignature}}
+
+Purpose: To hold the participant's signature. In a digital context, this would typically be an image data URL (e.g., from a signature pad) or a similar unique identifier.
+
+{{representativeName}}
+
+Purpose: The full name of the participant's representative (e.g., a guardian or nominee), if applicable.
+
+{{representativeSignature}}
+
+Purpose: To hold the signature of the participant's representative, if one is signing. Like the participant signature, this would likely be an image data URL.
