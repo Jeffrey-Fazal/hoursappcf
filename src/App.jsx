@@ -7,7 +7,7 @@ const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19
 const WEEK_DAYS_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PROVIDER_DETAILS = {
     name: 'Pivotal Connect Pty Ltd',
-    abn: '32674328182',
+    abn: '32 674 328 182',
     email: 'info@pivotalconnect.com.au',
     address: 'Parcel Collect 10302 37732, Shop 32 357, Redbank Plains Road, Redbank Plains, 4301, QLD'
 };
@@ -498,7 +498,7 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
                     <input type="email" name="planManager.email" value={info.planManager.email} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md"/>
                 </>)}
             </div>
-            <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">{isLoading ? 'Loading Agreement...' : 'Generate Agreement Document'}</button></div>
+            <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">Generate Agreement Document</button></div>
         </Section>
     );
 };
@@ -604,9 +604,7 @@ function App() {
             '{{planManager.address}}': serviceAgreementInfo.planManager.address,
             '{{planManager.phone}}': serviceAgreementInfo.planManager.phone,
             '{{planManager.email}}': serviceAgreementInfo.planManager.email,
-            '{{representativeName}}': serviceAgreementInfo.representativeName,
-            '{{participantSignature}}': '_________________________',
-            '{{representativeSignature}}': '_________________________',
+            '{{representativeName}}': serviceAgreementInfo.representativeName
         };
 
         const replacePlaceholders = (text) => {
@@ -615,7 +613,10 @@ function App() {
         }
 
         const renderSection = (section) => {
+            if (section.id === 'agreementSignatures') return ''; // Skip rendering signatures here
+            
             let html = `<h2>${section.title}</h2>`;
+
             if (section.content) {
                 html += `<p>${replacePlaceholders(section.content).replace(/\n/g, '<br>')}</p>`;
             }
@@ -640,27 +641,10 @@ function App() {
                     html += `<p>${replacePlaceholders(section.planManagerSection.intro)}</p><ul>${section.planManagerSection.fields.map(f => `<li><strong>${f.label}:</strong> ${replacePlaceholders(f.value)}</li>`).join('')}</ul>`;
                  }
             }
-            if(section.signatureSection) {
-                html += `<p>${replacePlaceholders(section.signatureSection.executionStatement)}</p>`;
-                html += `<div class="signatures">${section.signatureSection.parties.map(party => {
-                    let signatureBlock = `<div class="signature-box"><h4>${replacePlaceholders(party.heading)}</h4><br/><br/>`;
-                    if (party.party === 'provider') {
-                         signatureBlock += `<p>Signature: _________________________</p><p>Name: _________________________</p>`;
-                    } else {
-                         signatureBlock += `<p>Signature: ${replacePlaceholders(party.signature)}</p><p>Name: ${replacePlaceholders(party.printedName)}</p>`;
-                    }
-                    signatureBlock += '</div>';
-                    return signatureBlock;
-                }).join('')}</div>`;
-            }
-
             return html;
         }
         
-        const { sections, signatureSection } = agreementFileContent.agreementContent;
-        const mainSections = sections.filter(s => s.id !== 'agreementSignatures');
-        
-        let mainContentHtml = mainSections.map(renderSection).join('<hr>');
+        const mainContentHtml = agreementFileContent.agreementContent.sections.map(renderSection).join('<hr>');
         
         const totalAgreementPay = savedQuotes.reduce((sum, q) => sum + q.totalPay, 0);
         const totalAgreementHours = savedQuotes.reduce((sum, q) => sum + q.totalHours, 0);
@@ -686,10 +670,34 @@ function App() {
             </table>
         `;
 
-        const annexureHtml = `<hr><h1>Annexure A: Schedule of Supports</h1>${quotesHtml}${grandTotalSummaryHtml}`;
-        const signatureHtml = signatureSection ? `<hr>${renderSection(signatureSection)}` : '';
+        const signatureBlockHtml = () => {
+            const { signatureSection } = agreementFileContent.agreementContent;
+            if (!signatureSection) return '';
+
+            const providerHtml = `<td><p>...................................</p><p>Signature</p></td><td><p>...................................</p><p>Name (please print)</p></td>`;
+            const participantHtml = `<td><p>...................................</p><p>Signature</p></td><td><p>${serviceAgreementInfo.participantName}</p><p>Name (please print)</p></td>`;
+            const representativeHtml = serviceAgreementInfo.representativeName ? `<tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'representative').heading)}</strong></td></tr><tr><td><p>...................................</p><p>Signature</p></td><td><p>${serviceAgreementInfo.representativeName}</p><p>Name (please print)</p></td></tr>` : '';
+            
+            return `
+                <hr>
+                <h2>${signatureSection.title}</h2>
+                <p>${replacePlaceholders(signatureSection.executionStatement)}</p>
+                <table class="signature-table" style="width: 100%; border: none; margin-top: 2rem;">
+                    <tbody>
+                        <tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'provider').heading)}</strong></td></tr>
+                        <tr>${providerHtml}</tr>
+                        <tr><td colspan="2" style="height: 2rem;"></td></tr>
+                        <tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'participant').heading)}</strong></td></tr>
+                        <tr>${participantHtml}</tr>
+                        <tr><td colspan="2" style="height: 2rem;"></td></tr>
+                        ${representativeHtml}
+                    </tbody>
+                </table>
+            `;
+        };
         
-        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3,h4{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}.details-grid div{break-inside:avoid}.quote-section{margin-bottom:2rem;break-inside:avoid}.signatures{margin-top:2rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}.signature-box h4{white-space:pre-wrap}.signature-box p{margin-top:2rem}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${mainContentHtml}${annexureHtml}${signatureHtml}</body></html>`
+        const annexureHtml = `<hr><h1>Annexure A: Schedule of Supports</h1>${quotesHtml}${grandTotalSummaryHtml}`;
+        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3,h4{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.quote-section{margin-bottom:2rem;break-inside:avoid}.signature-table, .signature-table td {border: none;}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${mainContentHtml}${annexureHtml}${signatureBlockHtml()}</body></html>`
         
         const newWindow = window.open('', '_blank');
         newWindow.document.write(finalHtml);
