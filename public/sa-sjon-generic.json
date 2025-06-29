@@ -1,102 +1,338 @@
 {
-  "agreement": {
-    "1": {
-      "title": "Parties To The Agreement",
-      "content": "This Service Agreement will commence on from date and continue until either you or Service Provider terminates it in accordance with the termination conditions set out below."
+  "dynamicData": {
+    "participantName": "{{participantName}}",
+    "participantAddress": "{{participantAddress}}",
+    "agreementDate": "{{agreementDate}}",
+    "fundingType": "{{fundingType}}",
+    "planManager": {
+      "name": "{{planManager.name}}",
+      "address": "{{planManager.address}}",
+      "phone": "{{planManager.phone}}",
+      "email": "{{planManager.email}}"
     },
-    "2": {
-      "title": "Purpose",
-      "content": [
-        "The purpose of this agreement is to document the supports provided by Service Provider under your NDIS plan.",
-        {
-          "subpoints": [
-            "Support the independence and social and economic participation of people with disability",
-            "Enable people with disability to experience choice and control in the pursuit of their goals, and in the planning and delivery of supports."
+    "signatures": {
+      "participant": {
+        "signature": "{{participantSignature}}",
+        "printedName": "{{participantName}}"
+      },
+      "representative": {
+        "signature": "{{representativeSignature}}",
+        "printedName": "{{representativeName}}"
+      }
+    }
+  },
+  "agreementContent": {
+    "title": "Service Agreement",
+    "sections": [
+      {
+        "id": "parties",
+        "title": "Parties To The Agreement",
+        "content": "This Service Agreement is made between:\n\n{{participantName}} of {{participantAddress}}\n(First and last name) (address)\n\nAND\n\nPivotal Connect (ABN 32 674 328 182) of Parcel Collect 10302 37732, Shop 32 357, Redbank Plains Road, Redbank Plains, 4301, QLD.\n\nThis Service Agreement will commence on {{agreementDate}} and continue until either you or Pivotal Connect terminates it in accordance with the termination conditions set out below."
+      },
+      {
+        "id": "purpose",
+        "title": "Purpose",
+        "points": [
+          "The purpose of this agreement is to document the supports provided by Pivotal Connect under your NDIS plan.",
+          "This agreement is in the context of the NDIS, a scheme that aims to:\n1) Support the independence and social and economic participation of people with disability\n2) Enable people with disability to experience choice and control in the pursuit of their goals, and in the planning and delivery of supports."
+        ]
+      },
+      {
+        "id": "definitions",
+        "title": "Definitions",
+        "definitions": [
+          {
+            "term": "Pivotal Connect, us or we",
+            "definition": "Pivotal Connect PTY LTD ABN 32 674 328 182."
+          },
+          {
+            "term": "Participant or you",
+            "definition": "the NDIS participant as identified on page 1 of this Agreement."
+          },
+          {
+            "term": "DSW",
+            "definition": "Disability Support Worker"
+          },
+          {
+            "term": "NDIA",
+            "definition": "the National Disability Insurance Agency, which runs the NDIS."
+          },
+          {
+            "term": "NDIS",
+            "definition": "the National Disability Insurance Scheme as established by the NDIS Act."
+          },
+          {
+            "term": "Services",
+            "definition": "the services and support you agree for us to provide and we agree to provide to you."
+          }
+        ]
+      },
+      {
+        "id": "supportsAndServices",
+        "title": "Supports And Services",
+        "points": [
+          "Pivotal Connect will provide you with services and supports identified in your NDIS Plan.",
+          "If your plan differs from the details recorded in the NDIS portal, Pivotal Connect will provide the Services to you according to the details in the NDIS portal.",
+          "Together with you and your representative, Pivotal Connect will determine the specific services we can offer to help you meet your objectives.",
+          "This will be done through initial consultations, your Participant intake form, this Agreement, and the support planning process.",
+          "The specifics of the services, appointment times, locations, and staff members involved will be agreed upon and set out in writing.",
+          "Your needs, goals, and preferences may change over time. In consultation with us, the services can be adapted and adjusted accordingly.",
+          "Further details are in the attached Schedule of Supports.",
+          {
+            "intro": "You and your representative agree to the following:",
+            "subpoints": [
+              "Assessment and review of your Plan by Pivotal Connect.",
+              "Discussion of your Plan with the NDIA and its contractors (like Local Area Coordinators) by Pivotal Connect.",
+              "Pivotal Connect's discussions with service providers providing other Support Services.",
+              "Pivotal Connect's right to claim travel time from your NDIS funds, to the extent permitted by NDIS rules and applicable laws.",
+              "Provision of services by Pivotal Connect in line with the terms set out in this Agreement (updated as necessary) and your support plan.",
+              "To be available for interviews and record reviews by third party accreditation, auditors, and legislative bodies for random auditing purposes.",
+              "Compliance with the terms of Pivotal Connect’s Policies (including our Privacy and Information Management Policy)."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "consent",
+        "title": "Consent",
+        "points": [
+          "Your informed consent is required for the Services provided by Pivotal Connect.",
+          "You may withdraw your consent for any specific Service at any time, and the specific Service will cease immediately."
+        ]
+      },
+      {
+        "id": "providerResponsibilities",
+        "title": "Pivotal Connect’s Responsibilities",
+        "intro": "Pivotal Connect agrees to:",
+        "points": [
+          "Provide all supports under this agreement as outlined in Annexure A, in a manner that is timely and meets the Participant’s needs;",
+          "Review the provision of supports at least annually with the Participant;",
+          "Once agreed, provide supports that meet the Participant’s needs at the Participant’s preferred times;",
+          "Communicate clearly, openly and honestly in a timely manner;",
+          "Treat the Participant and the Participant’s representatives with courtesy and respect;",
+          "Consult the Participant on decisions about how supports are provided;",
+          "Give the Participant information about managing any complaints or disagreements and details of Pivotal Connect’s cancellation policy;",
+          "Listen to the Participant’s feedback and resolve problems quickly;",
+          "Give the Participant a minimum of 24 hours notice if Pivotal Connect has to change a scheduled appointment to provide supports;",
+          "Give the Participant the required notice if Pivotal Connect needs to end this Service Agreement (see “Terminating this Agreement” below for more information);",
+          "Protect the Participant’s privacy and confidential information;",
+          "Provide supports in a manner consistent with all relevant laws, including the National Disability Insurance Scheme Act 2013, its associated rules and regulations as issued and amended from time to time, and the Australian Consumer Law; and",
+          "Keep accurate records on the supports provided to the Participant.",
+          {
+            "intro": "In the event of unexpected changes in service provision, such as a worker's unavailability due to sudden or planned leave, we will take certain steps to ensure continuity in your service:",
+            "subpoints": [
+              "Initially, a skilled substitute worker or a member of our management team, equipped with the necessary skills and capabilities, will temporarily fill the role of the absent worker.",
+              "If this arrangement becomes untenable or lasts beyond a few weeks, our contingency plan involves sourcing temporary help from an external labour hire or contracting service, or even initiating a recruitment process for the role.",
+              "Should the worker's absence turn out to be permanent, we will prioritise hiring a new worker to take over the role."
+            ]
+          },
+          "Throughout these adjustments, we will keep you fully informed and will actively seek your consent for any alternative arrangements.",
+          "For Further information on our procedures for providing support in the event of an emergency or disaster please refer to our Business Continuity Plan and Emergency and Disaster Management Policy."
+        ]
+      },
+      {
+        "id": "participantResponsibilities",
+        "title": "Responsibilities Of The Participant",
+        "intro": "You and your Representatives agree to:",
+        "points": [
+          "Inform Pivotal Connect about how you wish the Services to be delivered to meet the Participant’s need;",
+          "Collaborate and actively participate in the development and review of your NDIS plan;",
+          "Provide accurate and up-to-date information necessary for the delivery of services, including relevant medical, personal and contact details;",
+          "Communicate openly and honestly with Pivotal Connect, and Inform of any concerns you have with any of the Services being provided;",
+          "Treat all Pivotal Connect’s staff, workers and others present during the delivery of support and services with courtesy and respect;",
+          "Give Pivotal Connect the required notice if you cannot make a scheduled appointment, noting that if the notice if not provided, Pivotal Connect’s cancellation policy will apply;",
+          "Pay all invoices for agreed services, transport and/or other expenses promptly;",
+          "Let Pivotal Connect know Immediately if there is a change to your NDIS plan, if it is suspended, replaced by a new plan, or if you stop being an NDIS participant."
+        ]
+      },
+      {
+        "id": "feesForServices",
+        "title": "Fees For Services",
+        "points": [
+          "Pivotal Connect will charge you for the Services.",
+          "The prices for the specific services that we provide to you are set out in the NDIS Pricing Arrangements and Price Limits.",
+          "The prices for all services are subject to modification in line with any changes to the NDIS Price Guide.",
+          "Any adjustments in our charges will automatically correspond with the most recent NDIS Price Guide, reflecting the specific Services we provide to you.",
+          "Additional expenses (i.e. things that are not funded under your Plan), are your responsibility and to be paid by you."
+        ]
+      },
+      {
+        "id": "payments",
+        "title": "Payments",
+        "intro": "Pivotal Connect will seek payment for their provision of supports after the supports have been delivered.",
+        "fundingOptions": [
+          {
+            "id": "Self Managed",
+            "text": "If you have chosen to self-manage the funding for NDIS supports provided under the Service Agreement. After providing those supports, Pivotal Connect will send you an invoice for those supports for you to pay. You must pay the invoice within seven days of the date of the invoice;"
+          },
+          {
+            "id": "NDIA Managed",
+            "text": "If you have nominated the NDIA to manage the funding for supports provided under this Service Agreement, after we provide the relevant services and supports, Pivotal Connect will claim payment from the NDIA;"
+          },
+          {
+            "id": "Plan Managed",
+            "text": "If you have nominated the Plan Management Provider to manage the funding for NDIS supports provided under this Service Agreement, after providing the relevant supports, Pivotal Connect will claim payment for those supports from the Plan Management Provider."
+          }
+        ],
+        "planManagerSection": {
+          "intro": "The Participant has nominated the Plan Management Provider:",
+          "fields": [
+            { "label": "Name", "value": "{{planManager.name}}" },
+            { "label": "Address", "value": "{{planManager.address}}" },
+            { "label": "Phone", "value": "{{planManager.phone}}" },
+            { "label": "Email", "value": "{{planManager.email}}" }
           ]
         }
-      ]
-    },
-    "3": {
-      "title": "Definitions",
-      "definitions": [
-        {"term": "Service Provider", "meaning": "Service Provider, us or we means Service Provider"},
-        {"term": "Participant", "meaning": "Participant or you means the NDIS participant as identified on page 1 of this Agreement."},
-        {"term": "NDIA", "meaning": "National Disability Insurance Agency, which runs the NDIS."},
-        {"term": "NDIS", "meaning": "National Disability Insurance Scheme as established by the NDIS Act."},
-        {"term": "Services", "meaning": "The services and support you agree for us to provide and we agree to provide to you."}
-      ]
-    },
-    "4": {
-      "title": "Supports And Services",
-      "clauses": [
-        "Service Provider will provide you with services and supports identified in your NDIS Plan.",
-        "If your plan differs from the details recorded in the NDIS portal, Service Provider will provide the Services to you according to the details in the NDIS portal.",
-        "Together with you and your representative, Service Provider will determine the specific services we can offer to help you meet your objectives.",
-        "This will be done through initial consultations, your Participant intake form, this Agreement, and the support planning process.",
-        "The specifics of the services, appointment times, locations, and staff members involved will be agreed upon and set out in writing.",
-        "Your needs, goals, and preferences may change over time. In consultation with us, the services can be adapted and adjusted accordingly.",
-        "Further details are in the attached Schedule of Supports.",
+      },
+      {
+        "id": "gst",
+        "title": "Goods And Services Tax (GST)",
+        "intro": "For the purpose of GST legislation, the Parties confirm that:",
+        "points": [
+          "A Supply of supports under this Service Agreement is a supply of one or more of the reasonable and necessary supports specified in the statement included, under subsection 33(2) of the NDIS Act, in the Participant’s NDIS Plan currently in effect under section 37 of the NDIS Act;",
+          "The Participant’s NDIS Plan is expected to remain in effect while the supports are provided; and",
+          "The Participant will immediately notify the provider if the Participant’s NDIS Plan is replaced by a new plan or the Participant stops being a participant in the NDIS."
+        ]
+      },
+      {
+        "id": "cancellationPolicy",
+        "title": "11. Cancellation and No Show Policy",
+        "points": [
+          "If you cancel a support at short notice, or do not attend a scheduled support, we may claim up to 100 percent of the agreed fee from your NDIS plan, as allowed by the current NDIS Pricing Arrangements and Price Limits.",
+          {
+            "heading": "Short Notice Cancellation – Two Clear Business Days:",
+            "text": "This applies to non-DSW supports. If you provide less than two clear business days’ notice, or do not show up for a scheduled support within a reasonable time, or are not present at the agreed place when Pivotal Connect is travelling to deliver the support, we may claim for the full fee for that support if allowed by the NDIS price guide."
+          },
+          {
+            "heading": "Short Notice Cancellation – Seven Days:",
+            "text": "This applies to DSW supports. If you provide less than seven days’ notice of cancellation, or do not show up for a scheduled support within a reasonable time, or are not present at the agreed place when Pivotal Connect is travelling to deliver the support, we may claim for the full fee for that support if allowed by the NDIS price guide."
+          },
+          {
+            "intro": "We will only claim a short notice cancellation fee if:",
+            "subpoints": [
+              "The NDIS price guide allows a claim for the relevant support item,",
+              "We cannot find other billable work for the relevant worker, and",
+              "We must pay the worker for the time that would have been spent providing the support."
+            ]
+          },
+          "We may choose to waive the cancellation fee at our discretion, depending on your circumstances.",
+          "For group supports, if you cancel your attendance at short notice and we cannot find a replacement, we may claim as if you had attended, in line with the NDIS rules.",
+          "If you need to cancel a support outside of office hours, please call 07 3063 3261.",
+          "There is no set limit to the number of short notice cancellations, but the NDIS monitors cancellation patterns. If there is a high number of cancellations, we will work with you to understand why and ensure your plan continues to meet your needs."
+        ]
+      },
+      {
+        "id": "terminatingAgreement",
+        "title": "Terminating This Agreement",
+        "points": [
+          "Should either party wish to end this Agreement, they must give twenty-eight (28) days’ notice in writing or by phone (if written notice cannot be provided by the Participant/Representative).",
+          "If either party seriously breaches this Agreement, the requirement of notice will be waived.",
+          {
+            "intro": "Pivotal Connect reserves the right to terminate this Service Agreement immediately under the following circumstances:",
+            "subpoints": [
+                "If you cease to possess a source of individualised government funding (i.e., no longer an NDIS participant or have exhausted all your NDIS funding) or a source of private funding.",
+                "If your support plan or the services offered by Pivotal Connect no longer meet your needs or assist in achieving your chosen goals.",
+                "If you or your support network fail to communicate and inform us about changes in your support needs.",
+                "If you decide to transfer to another service provider.",
+                "In the event of your death.",
+                "If you demonstrate an inability or unwillingness over time to work towards the agreed goals.",
+                "If you fail to comply with the reasonable conditions outlined in your support plan, consequently jeopardising the safe delivery of our services and the health and safety of our staff.",
+                "If you breach the terms of this Agreement.",
+                "If you fail to comply with the Policies of Pivotal Connect.",
+                "If changes in your condition result in the need for supports or services that exceed the skills and expertise of Pivotal Connect's staff, or would require services that we lack the capacity to provide.",
+                "If there has been no contact between you and Pivotal Connect for a period of 2 months.",
+                "If you or members of your support network engage in behaviour deemed unacceptable by Pivotal Connect, such as violence, abuse, aggression, theft, property damage, or behaviour posing risks to the safe delivery of our Services or the health and safety of our staff.",
+                "If you disregard risk management procedures under Pivotal Connect's Workplace Health and Safety Policy.",
+                "If you fail to pay the fees due to Pivotal Connect by the specified due date under this Agreement."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "complaintsAndFeedback",
+        "title": "Complaints And Feedback",
+        "points": [
+          {
+            "intro": "If the Participant wishes to give Pivotal Connect feedback or wishes to make a complaint in regard to the provision of supports, you can make a complaint:",
+            "methods": [
+              "In person to the Director or a staff member;",
+              "By email to info@pivotalconnect.com.au;",
+              "Verbally by telephone to 07 3063 3261;",
+              "On our website https://pivotalconnect.com.au; or",
+              "By post to Parcel Collect 10302 37732, Shop 32 357, Redbank Plains Road, Redbank Plains, 4301, QLD."
+            ]
+          },
+          "For all written complaints or feedback, please provide your complaint in the form of our written Feedback and Complaints Form.",
+          "We will resolve complaints promptly in accordance with our Feedback and Complaints Policy.",
+          {
+            "intro": "You can make a complaint to the NDIS Commission by:",
+            "ndisMethods": [
+              "Phone: 1800 035 544 or TTY 133 677 (Interpreters can be arranged);",
+              "National Relay Service (https://www.accesshub.gov.au/) and ask for 1800 035 544; or",
+              "Visiting https://www.ndiscommission.gov.au/about/complaints and filling out a complaint contact form."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "emergencyAndDisaster",
+        "title": "Emergency And Disaster Management",
+        "points": [
+          {
+            "intro": "In the event of an unavoidable change to the provision of supports to you due to an emergency or disaster occurring we will abide by the following care continuity plan to ensure that supports continue to be delivered to you:",
+            "subpoints": [
+              "We will attempt to find a suitably qualified and/or experienced Worker at Pivotal Connect to fill in on a temporary basis to provide support to you while your regular worker is absent.",
+              "Engage an external agency to provide short term assistance or otherwise recruit for the role.",
+              "Recruit a new Worker to act in the role."
+            ]
+          },
+          "In the event of an emergency or disaster, Pivotal Connect’s workers will be trained to follow the procedures set out in the Emergency Management Plan, ensuring you are safe, and your supports are maintained during this time.",
+          "A Participant Emergency Plan will be completed in collaboration with you and your representative/family, to ensure your specific support needs are taken care of and appropriate procedures are in place during an emergency."
+        ]
+      },
+      {
+        "id": "dailyPersonalActivities",
+        "title": "Daily Personal Activities (0107) With Sole Support Workers",
+        "points": [
+          "Pivotal Connect, when providing daily personal activities with sole support workers, providing supports to participants who live alone, will comply with the additional conditions imposed under section 73G of the National Disability Insurance Scheme Act 2013. https://www.ndiscommission.gov.au/providers/registered-ndis-providers/registered-provider-obligations-and-requirements/",
+          "Where this is applicable, Pivotal Connect will record the evaluation of your risk factors on the Participant Risk Assessment Form. You will receive a copy of this, along with an updated version in the event of any changes in circumstances.",
+          "Pivotal Connect will ensure your sole support worker possesses the necessary skills, qualifications, and attributes to provide quality support. You asked for your preferences for workers, and will be involved in this selection process.",
+          "The evaluation of your Service Agreement's implementation will occur at appropriate frequency, conducted by a person other than the sole support worker. This assessment will incorporate your feedback regarding the satisfaction levels with the type, quality, and frequency of personal support provided.",
+          {
+            "intro": "Pivotal Connect will oversee and assess the performance of the sole support worker, at appropriate frequency, ensuring that it aligns with the terms of the agreement and prioritizes your safety and well-being. This will include, with your consent:",
+            "subpoints": [
+              "Scheduled visits by a supervisor to your home for in-person supervision of the sole support worker.",
+              "Communication with you, in your preferred language and mode of communication, including face-to-face contact within your home."
+            ]
+          },
+          "With your consent, Pivotal Connect will establish connections with other providers who may be involved in providing supports or services to you in your home or in supporting you to access community based activities."
+        ]
+      }
+    ],
+    "signatureSection": {
+      "id": "agreementSignatures",
+      "title": "AGREEMENT SIGNATURES",
+      "executionStatement": "Executed as an agreement on Date: {{agreementDate}}",
+      "parties": [
         {
-          "subclauses": [
-            "Assessment and review of your Plan by Service Provider.",
-            "Discussion of your Plan with the NDIA and its contractors.",
-            "Service Provider's discussions with service providers providing other Support Services.",
-            "Service Provider's right to claim travel time from your NDIS funds, to the extent permitted by NDIS rules and applicable laws.",
-            "Provision of services by Service Provider in line with the terms set out in this Agreement and your support plan.",
-            "To be available for interviews and record reviews by third party accreditation, auditors, and legislative bodies for random auditing purposes.",
-            "Compliance with the terms of Service Provider’s Policies including the Privacy and Information Management Policy."
-          ]
+          "party": "provider",
+          "heading": "Signed for and on behalf of \nPivotal Connect PTY LTD \nABN 32 674 328 182 (Pivotal Connect), by:",
+          "signature": "",
+          "printedName": ""
+        },
+        {
+          "party": "participant",
+          "heading": "Signed by the Participant:",
+          "signature": "{{participantSignature}}",
+          "printedName": "{{participantName}}"
+        },
+        {
+          "party": "representative",
+          "heading": "Signed by the Representative:",
+          "signature": "{{representativeSignature}}",
+          "printedName": "{{representativeName}}"
         }
       ]
-    },
-    "5": {
-      "title": "Consent",
-      "clauses": [
-        "Your informed consent is required for the Services provided by Service Provider.",
-        "You may withdraw your consent for any specific Service at any time, and the specific Service will cease immediately."
-      ]
-    },
-    "6": {
-      "title": "Service Provider’s Responsibilities",
-      "clauses": [
-        "Provide all supports under this agreement as outlined in Annexure A, in a manner that is timely and meets the Participant’s needs.",
-        "Review the provision of supports at least annually with the Participant.",
-        "Once agreed, provide supports that meet the Participant’s needs at the Participant’s preferred times.",
-        "Communicate clearly, openly and honestly in a timely manner.",
-        "Treat the Participant and the Participant’s representatives with courtesy and respect.",
-        "Consult the Participant on decisions about how supports are provided.",
-        "Give the Participant information about managing any complaints or disagreements and details of Service Provider’s cancellation policy.",
-        "Listen to the Participant’s feedback and resolve problems quickly.",
-        "Give the Participant a minimum of 24 hours notice if Service Provider has to change a scheduled appointment to provide supports.",
-        "Give the Participant the required notice if Service Provider needs to end this Service Agreement.",
-        "Protect the Participant’s privacy and confidential information.",
-        "Provide supports in a manner consistent with all relevant laws, including the NDIS Act 2013 and Australian Consumer Law.",
-        "Keep accurate records on the supports provided to the Participant.",
-        "Provide continuity in service in the event of unexpected staff absence or unavailability.",
-        "Communicate all adjustments and seek Participant’s consent for any alternative arrangements.",
-        "Refer to the Business Continuity Plan and Emergency and Disaster Management Policy for further guidance."
-      ]
-    },
-    "7": {
-      "title": "Responsibilities Of The Participant",
-      "clauses": [
-        "Inform Service Provider about how you wish the Services to be delivered.",
-        "Collaborate and actively participate in the development and review of your NDIS plan.",
-        "Provide accurate and up-to-date information for service delivery.",
-        "Communicate openly and honestly with Service Provider, and report any concerns.",
-        "Treat Service Provider’s staff and others with courtesy and respect.",
-        "Give required notice if you cannot attend a scheduled appointment.",
-        "Pay all invoices for agreed services promptly.",
-        "Notify Service Provider of any changes to your NDIS plan or status."
-      ]
-    },
-    "8": { "title": "Fees For Services", "clauses": [ "Service Provider will charge you for the Services.", "The prices for the specific services that we provide to you are set out in the NDIS Pricing Arrangements and Price Limits.", "The prices for all services are subject to modification in line with any changes to the NDIS Price Guide.", "Any adjustments in our charges will automatically correspond with the most recent NDIS Price Guide, reflecting the specific Services we provide to you.", "Additional expenses (i.e. things that are not funded under your Plan), are your responsibility and to be paid by you." ] },
-    "9": { "title": "Payments", "clauses": [ "Service Provider will seek payment for their provision of supports after the supports have been delivered.", { "subpoints": [ "Self Managed: You will be invoiced and must pay within seven days.", "NDIA Managed: We will claim payment directly from the NDIA.", "Plan Managed: We will claim payment from the Plan Management Provider." ] } ] },
-    "10": { "title": "Goods And Services Tax (Gst)", "clauses": [ "The supply of supports is considered GST-free under the NDIS.", "The Participant’s NDIS Plan is expected to remain in effect while the supports are provided.", "The Participant must notify the provider if their NDIS Plan changes or ends." ] },
-    "11": { "title": "Cancellation And No Show Policy", "clauses": [ "We may charge 100% for short notice cancellations or no-shows.", "We will only charge when allowed by the NDIS Price Guide and if no alternative work can be assigned.", "We will monitor cancellations and work with you to minimise them.", "To cancel outside office hours, please call the service provider’s phone number." ] },
-    "12": { "title": "Terminating This Agreement", "clauses": [ "Either party may terminate this Agreement with 28 days’ notice.", "Notice is not required in cases of serious breach.", { "subpoints": [ "Loss of NDIS funding or eligibility.", "Service Provider can no longer meet your needs.", "Lack of communication from you or your support network.", "You transfer to another provider.", "Your death.", "Failure to work towards agreed goals.", "Non-compliance with the agreement or policies.", "Unsafe or abusive behaviour towards staff.", "Unpaid fees or overdue invoices." ] } ] },
-    "13": { "title": "Complaints And Feedback", "clauses": [ "You can make complaints in person, by email, phone, website or post.", "Written complaints should use our Feedback and Complaints Form.", "Complaints will be handled per our Feedback and Complaints Policy.", "You can also contact the NDIS Commission to make a complaint." ] },
-    "14": { "title": "Emergency And Disaster Management", "clauses": [ "In emergencies or disasters, we will aim to maintain continuity of support.", "We may provide temporary staff or engage an agency.", "An Emergency Management Plan and Participant Emergency Plan will be in place." ] },
-    "15": { "title": "Daily Personal Activities (0107) With Sole Support Workers", "clauses": [ "We will comply with section 73G of the NDIS Act when sole workers are involved.", "We will conduct and share Participant Risk Assessments.", "Workers will be appropriately qualified and selected with your input.", "Supervision and performance checks will be conducted regularly.", "We will coordinate with other providers as needed, with your consent." ] }
+    }
   }
 }
