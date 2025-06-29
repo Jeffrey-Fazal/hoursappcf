@@ -6,7 +6,7 @@ const SERVICE_AGREEMENT_URL = 'https://hoursappcf.pages.dev/sa-sjon-generic.json
 const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19,2025-04-20,2025-04-21,2025-04-25,2025-05-05,2025-08-13,2025-10-06,2025-12-24,2025-12-25,2025-12-26';
 const WEEK_DAYS_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PROVIDER_DETAILS = {
-    name: 'Piovotal Connect Pty Ltd',
+    name: 'Pivotal Connect Pty Ltd',
     abn: '32674328182',
     email: 'info@pivotalconnect.com.au',
     address: 'Parcel Collect 10302 37732, Shop 32 357, Redbank Plains Road, Redbank Plains, 4301, QLD'
@@ -590,7 +590,7 @@ function App() {
             return;
         }
 
-        if (!agreementFileContent || !agreementFileContent.agreementContent) {
+        if (!agreementFileContent || !agreementFileContent.agreementContent || !agreementFileContent.agreementContent.sections) {
             setError("Service agreement template could not be loaded or is in the wrong format.");
             return;
         }
