@@ -205,7 +205,7 @@ const FloatingNav = ({ totalPay, totalHours }) => {
     return (
         <div className="fixed top-1/2 right-4 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm shadow-2xl rounded-xl p-4 border border-gray-200 w-64 hidden lg:block no-print">
             <div className="text-center mb-4 pb-4 border-b">
-                <p className="text-sm font-semibold text-gray-600">Total Projected Pay</p>
+                <p className="text-sm font-semibold text-gray-600">Total Projected Budget</p>
                 <p className="text-2xl font-bold text-purple-700">${formatNumber(totalPay)}</p>
                 <p className="text-sm font-semibold text-gray-600 mt-2">Total Projected Hours</p>
                 <p className="text-2xl font-bold text-indigo-700">{formatNumber(totalHours)}</p>
@@ -333,7 +333,7 @@ const ManualRatesSection = ({ rates, handlers }) => (
 const BudgetSection = ({ budget, setBudget, budgetMode, setBudgetMode, calculationResults, handlers }) => (
     <Section id="budget" title="Budget Information" color="teal">
         <div className="flex space-x-4 mb-4">
-            <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="lock" checked={budgetMode === 'lock'} onChange={() => setBudgetMode('lock')}/><span className="ml-2">Lock Budget</span></label>
+            <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="lock" checked={budgetMode === 'lock'} onChange={() => setBudgetMode('lock')}/><span className="ml-2">Set Budget</span></label>
             <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="noBudget" checked={budgetMode === 'noBudget'} onChange={() => setBudgetMode('noBudget')}/><span className="ml-2">No Budget</span></label>
         </div>
         {budgetMode === 'lock' && (
@@ -378,7 +378,7 @@ const ResultsSection = ({ results }) => (
             </div>
         </div>
         <div className="mt-6 p-6 bg-purple-700 rounded-xl shadow-lg text-white text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Pay:</h2><p className="text-4xl sm:text-5xl font-extrabold mb-4">${formatNumber(results.totalPay)}</p>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Budget:</h2><p className="text-4xl sm:text-5xl font-extrabold mb-4">${formatNumber(results.totalPay)}</p>
              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-left">
                 <div className="bg-purple-800 p-3 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-purple-200">W/day Day:</h3><p className="text-2xl font-bold">${formatNumber(results.weekdayPay)}</p></div>
                 <div className="bg-purple-800 p-3 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-purple-200">W/day Eve:</h3><p className="text-2xl font-bold">${formatNumber(results.weekdayEveningPay)}</p></div>
@@ -406,7 +406,7 @@ const SavedQuoteItem = ({ quote, onDelete, onPrint }) => {
     return (
         <div ref={quoteRef} className="bg-white p-4 rounded-lg shadow-md border printable-area">
             <div className="flex justify-between items-start gap-4">
-                <div className="flex-grow"><p className="font-bold text-gray-800">{quote.description}</p><p className="text-sm text-gray-600 mt-1"><strong>Total Pay:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span></p></div>
+                <div className="flex-grow"><p className="font-bold text-gray-800">{quote.description}</p><p className="text-sm text-gray-600 mt-1"><strong>Total budget:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span></p></div>
                 <div className="flex gap-2 no-print"><button onClick={() => onPrint(quoteRef)} className="text-blue-500 hover:text-blue-700 font-semibold text-sm p-1">Print</button><button onClick={() => onDelete(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1">Delete</button></div>
             </div>
             <div className="mt-4 pt-4 border-t overflow-x-auto">
@@ -493,7 +493,7 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
                     <input type="email" name="planManager.email" value={info.planManager.email} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md"/>
                 </>)}
             </div>
-            <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">Generate Agreement Document</button></div>
+            <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">Generate Service Agreement</button></div>
         </Section>
     );
 };
@@ -771,7 +771,7 @@ function App() {
             <style>{`@media print { body{margin:1.5rem} .no-print{display:none!important} .printable-area{display:block!important;page-break-inside:avoid;box-shadow:none!important;border:1px solid #ccc!important} main{box-shadow:none!important} }`}</style>
             <FloatingNav totalPay={calculationResults.totalPay} totalHours={calculationResults.totalHours} />
             <main className="max-w-4xl w-full mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
-                <div className="text-center no-print"><h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-700">Hours & Pay Forecasting App</h1><p className="mt-2 text-gray-600">A tool for NDIS planning and quoting.</p></div>
+                <div className="text-center no-print"><h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-700">NDIS Budget & SA Generator</h1><p className="mt-2 text-gray-600">A tool for NDIS planning and quoting.</p></div>
                 {error && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Error: </strong><span className="ml-2">{error}</span></div>)}
                 {(rateError || agreementError) && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Data Loading Error: </strong><span className="ml-2">{rateError || agreementError}</span></div>)}
                 
