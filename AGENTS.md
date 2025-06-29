@@ -72,7 +72,20 @@ This section provides a powerful, optional tool for users to select official NDI
 * Item Code Display: Upon selecting a service, its official NDIS item number (e.g., 01\_200\_0115\_1\_1) is displayed directly below the selection box for easy reference and copying.  
 * Optional Use: This entire section can be left empty. This allows users to bypass the NDIS rate lookup and instead use a manual rate entry method if needed.
 
-### 1.4 Hourly Rates
+
+### 1.4 Transport Calculator (proposed)
+
+The transport calculator helps users estimate a budget for transport. There are two types of transport:
+1) Non Provider Travel (NPT)
+> Defined as the distance between the head office and participants home
+2) Activity Based Travel (ABT)
+> Transport traveled with a particpant in the care
+
+Travel can only be claimed for certain line items. Each line item should have it's own calculation for transport that gets added to it's budget.
+
+
+
+### 1.5 Hourly Rates
 
 This section is where the final monetary rates for the calculation are set, either automatically or manually.
 
@@ -80,7 +93,7 @@ This section is where the final monetary rates for the calculation are set, eith
 * Manual Entry: Users can directly type numerical values into each rate field. This allows them to use custom rates or override the pre-loaded NDIS rates.  
 * Set All Rates Same: A convenience button that, when clicked, likely takes the value from the "Weekday Day" field and applies it to all other rate fields, streamlining the process for flat-rate calculations.
 
-### 1.5 Budget Information
+### 1.6 Budget Information
 
 This section allows users to perform calculations based on a fixed budget, suggesting an optimal distribution of hours.
 
@@ -91,7 +104,7 @@ This section allows users to perform calculations based on a fixed budget, sugge
 * Live Budget Tracking: The app displays a real-time comparison of the projected total cost versus the entered budget (e.g., "UNDER by $2,689.70").  
 * Apply Suggested Hours: A button appears that allows the user to automatically populate the "Applicable Days & Hours per Day" section with the suggested hour distribution to meet the target budget.
 
-### 1.6 Public Holidays
+### 1.7 Public Holidays
 
 This section defines how public holidays are factored into the calculation.
 
@@ -99,7 +112,7 @@ This section defines how public holidays are factored into the calculation.
 * Default Holiday List: The application comes pre-populated with a default list of public holidays, noted as being for Queensland.  
 * Customization: Users have full control to override the default list. They can edit, add, or remove dates in the "Custom Public Holidays" text area. The dates must be in YYYY-MM-DD format and separated by commas.
 
-### 1.7 Results
+### 1.8 Results
 
 This section displays the final calculated outputs based on all the user's selections in the sections above.
 
@@ -110,7 +123,7 @@ This section displays the final calculated outputs based on all the user's selec
   * A large, prominent display of the total projected pay (cost) for the selected period.  
   * A detailed breakdown of how the total cost is distributed across the same rate categories.
 
-### 1.8 Save Calculation as Quote
+### 1.9 Save Calculation as Quote
 
 This feature allows users to save the results of a calculation as a formal quote, manage multiple quotes, and prepare them for use in other documents.
 
@@ -120,7 +133,7 @@ This feature allows users to save the results of a calculation as a formal quote
 * Quote Management: Users can Delete individual quotes from the saved list.  
 * Printing: The functionality to print individual quotes or all saved quotes is a requirement for this section.
 
-### 1.9 Generate Service Agreement
+### 1.10 Generate Service Agreement
 
 This feature collects the necessary information to create a formal service agreement based on the generated quote(s).
 
@@ -132,7 +145,7 @@ This feature collects the necessary information to create a formal service agree
   * NDIA Managed  
 * Conditional Plan Manager Fields: If "Plan Managed" is selected, input fields for the Plan Manager's Name and Plan Manager's Email become visible and are required.
 
-### 1.10 Period Breakdown
+### 1.11 Period Breakdown
 
 To provide transparency and allow users to verify the calculations, this section displays a summary of how the selected date range was categorized.
 
