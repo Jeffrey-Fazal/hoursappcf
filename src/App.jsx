@@ -590,7 +590,7 @@ function App() {
             return;
         }
 
-        if (!agreementFileContent || !agreementFileContent.agreementContent || !agreementFileContent.agreementContent.sections) {
+        if (!agreementFileContent || !agreementFileContent.agreementContent) {
             setError("Service agreement template could not be loaded or is in the wrong format.");
             return;
         }
@@ -656,18 +656,40 @@ function App() {
 
             return html;
         }
+        
+        const { sections, signatureSection } = agreementFileContent.agreementContent;
+        const mainSections = sections.filter(s => s.id !== 'agreementSignatures');
+        
+        let mainContentHtml = mainSections.map(renderSection).join('<hr>');
+        
+        const totalAgreementPay = savedQuotes.reduce((sum, q) => sum + q.totalPay, 0);
+        const totalAgreementHours = savedQuotes.reduce((sum, q) => sum + q.totalHours, 0);
 
-        const agreementHtml = agreementFileContent.agreementContent.sections.map(renderSection).join('<hr>');
         const quotesHtml = savedQuotes.map(quote => {
             const quoteDetails = [
                 { label: 'Weekday Day', hours: quote.results.weekdayHours, pay: quote.results.weekdayPay, rateInfo: quote.rates.weekday }, { label: 'Weekday Evening', hours: quote.results.weekdayEveningHours, pay: quote.results.weekdayEveningPay, rateInfo: quote.rates.weekdayEvening },
                 { label: 'Saturday', hours: quote.results.saturdayHours, pay: quote.results.saturdayPay, rateInfo: quote.rates.saturday }, { label: 'Sunday', hours: quote.results.sundayHours, pay: quote.results.sundayPay, rateInfo: quote.rates.sunday },
                 { label: 'Public Holiday', hours: quote.results.publicHolidayHours, pay: quote.results.publicHolidayPay, rateInfo: quote.rates.publicHoliday },
             ].filter(d => d.hours > 0 && d.rateInfo);
-            return `<div class="quote-section"><h3>Schedule of Supports</h3><h4>Quote: ${quote.description}</h4><p><strong>Total Pay:</strong> $${formatNumber(quote.totalPay)} | <strong>Total Hours:</strong> ${formatNumber(quote.totalHours)}</p><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Hours</th><th>Total</th></tr></thead><tbody>${quoteDetails.map(d => `<tr><td>${d.label}</td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3" class="text-right"><strong>Grand Total:</strong></td><td class="text-right"><strong>${formatNumber(quote.totalHours)}</strong></td><td class="text-right"><strong>$${formatNumber(quote.totalPay)}</strong></td></tr></tfoot></table></div>`;
+            return `<div class="quote-section"><h4>Quote: ${quote.description}</h4><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Hours</th><th>Total</th></tr></thead><tbody>${quoteDetails.map(d => `<tr><td>${d.label}</td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('')}</tbody></table></div>`;
         }).join('');
         
-        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}.details-grid div{break-inside:avoid}.quote-section{margin-bottom:2rem;break-inside:avoid}.signatures{margin-top:2rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}.signature-box h4{white-space:pre-wrap}.signature-box p{margin-top:2rem}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${agreementHtml.replace('<h2>Schedule of Supports</h2>', quotesHtml)}</body></html>`
+        const grandTotalSummaryHtml = `
+            <table class="grand-total-summary" style="margin-top: 2rem;">
+                <tfoot>
+                    <tr style="background-color: #f2f2f2;">
+                        <td colspan="3" class="text-right"><strong>Total Budget</strong></td>
+                        <td class="text-right"><strong>${formatNumber(totalAgreementHours)} hrs</strong></td>
+                        <td class="text-right"><strong>$${formatNumber(totalAgreementPay)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+
+        const annexureHtml = `<hr><h1>Annexure A: Schedule of Supports</h1>${quotesHtml}${grandTotalSummaryHtml}`;
+        const signatureHtml = signatureSection ? `<hr>${renderSection(signatureSection)}` : '';
+        
+        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3,h4{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}.details-grid div{break-inside:avoid}.quote-section{margin-bottom:2rem;break-inside:avoid}.signatures{margin-top:2rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}.signature-box h4{white-space:pre-wrap}.signature-box p{margin-top:2rem}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${mainContentHtml}${annexureHtml}${signatureHtml}</body></html>`
         
         const newWindow = window.open('', '_blank');
         newWindow.document.write(finalHtml);
