@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 // --- Constants ---
 const NDIS_RATES_URL = 'https://hoursappcf.pages.dev/ndisrates2025.json';
 const SERVICE_AGREEMENT_URL = 'https://hoursappcf.pages.dev/sa-sjon-generic.json';
+const HEADER_IMAGE_URL = 'https://hoursappcf.pages.dev/images/pc-header.png';
+const FOOTER_IMAGE_URL = 'https://hoursappcf.pages.dev/images/pc-footer.png';
 const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19,2025-04-20,2025-04-21,2025-04-25,2025-05-05,2025-08-13,2025-10-06,2025-12-24,2025-12-25,2025-12-26';
 const WEEK_DAYS_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PROVIDER_DETAILS = {
@@ -24,10 +26,6 @@ const formatNumber = (num) => typeof num === 'number' && !isNaN(num) ? num.toLoc
 
 
 // --- Custom Hooks ---
-
-/**
- * Custom hook for persisting state to window.localStorage.
- */
 const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
         try {
@@ -50,9 +48,6 @@ const useLocalStorage = (key, initialValue) => {
     return [storedValue, setStoredValue];
 };
 
-/**
- * Custom hook to fetch data from a URL.
- */
 const useFetchData = (url, initialData = null) => {
     const [data, setData] = useState(initialData);
     const [isLoading, setIsLoading] = useState(true);
@@ -613,10 +608,9 @@ function App() {
         }
 
         const renderSection = (section) => {
-            if (section.id === 'agreementSignatures') return ''; // Skip rendering signatures here
+            if (section.id === 'agreementSignatures') return ''; 
             
             let html = `<h2>${section.title}</h2>`;
-
             if (section.content) {
                 html += `<p>${replacePlaceholders(section.content).replace(/\n/g, '<br>')}</p>`;
             }
@@ -641,10 +635,14 @@ function App() {
                     html += `<p>${replacePlaceholders(section.planManagerSection.intro)}</p><ul>${section.planManagerSection.fields.map(f => `<li><strong>${f.label}:</strong> ${replacePlaceholders(f.value)}</li>`).join('')}</ul>`;
                  }
             }
+            
             return html;
         }
         
-        const mainContentHtml = agreementFileContent.agreementContent.sections.map(renderSection).join('<hr>');
+        const { sections, signatureSection } = agreementFileContent.agreementContent;
+        const mainSections = sections.filter(s => s.id !== 'agreementSignatures' && s.id !== 'supportsAndServices');
+        
+        let mainContentHtml = mainSections.map(renderSection).join('<hr>');
         
         const totalAgreementPay = savedQuotes.reduce((sum, q) => sum + q.totalPay, 0);
         const totalAgreementHours = savedQuotes.reduce((sum, q) => sum + q.totalHours, 0);
@@ -669,25 +667,27 @@ function App() {
                 </tfoot>
             </table>
         `;
-
+        
         const signatureBlockHtml = () => {
-            const { signatureSection } = agreementFileContent.agreementContent;
             if (!signatureSection) return '';
+            const providerParty = signatureSection.parties.find(p => p.party === 'provider');
+            const participantParty = signatureSection.parties.find(p => p.party === 'participant');
+            const representativeParty = signatureSection.parties.find(p => p.party === 'representative');
 
-            const providerHtml = `<td><p>...................................</p><p>Signature</p></td><td><p>...................................</p><p>Name (please print)</p></td>`;
-            const participantHtml = `<td><p>...................................</p><p>Signature</p></td><td><p>${serviceAgreementInfo.participantName}</p><p>Name (please print)</p></td>`;
-            const representativeHtml = serviceAgreementInfo.representativeName ? `<tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'representative').heading)}</strong></td></tr><tr><td><p>...................................</p><p>Signature</p></td><td><p>${serviceAgreementInfo.representativeName}</p><p>Name (please print)</p></td></tr>` : '';
+            const providerHtml = `<td><p style="border-bottom: 1px dotted #000; height: 2em;"></p><p>Signature</p></td><td><p style="border-bottom: 1px dotted #000; height: 2em;"></p><p>Name (please print)</p></td>`;
+            const participantHtml = `<td><p style="border-bottom: 1px dotted #000; height: 2em;"></p><p>Signature</p></td><td><p style="border-bottom: 1px dotted #000; height: 2em;">${serviceAgreementInfo.participantName}</p><p>Name (please print)</p></td>`;
+            const representativeHtml = serviceAgreementInfo.representativeName ? `<tr><td colspan="2"><strong>${replacePlaceholders(representativeParty.heading)}</strong></td></tr><tr><td><p style="border-bottom: 1px dotted #000; height: 2em;"></p><p>Signature</p></td><td><p style="border-bottom: 1px dotted #000; height: 2em;">${serviceAgreementInfo.representativeName}</p><p>Name (please print)</p></td></tr>` : '';
             
             return `
                 <hr>
                 <h2>${signatureSection.title}</h2>
-                <p>${replacePlaceholders(signatureSection.executionStatement)}</p>
+                <p>Executed as an agreement on: ${serviceAgreementInfo.agreementDate}</p>
                 <table class="signature-table" style="width: 100%; border: none; margin-top: 2rem;">
                     <tbody>
-                        <tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'provider').heading)}</strong></td></tr>
+                        <tr><td colspan="2"><strong>${replacePlaceholders(providerParty.heading)}</strong></td></tr>
                         <tr>${providerHtml}</tr>
                         <tr><td colspan="2" style="height: 2rem;"></td></tr>
-                        <tr><td colspan="2"><strong>${replacePlaceholders(signatureSection.parties.find(p => p.party === 'participant').heading)}</strong></td></tr>
+                        <tr><td colspan="2"><strong>${replacePlaceholders(participantParty.heading)}</strong></td></tr>
                         <tr>${participantHtml}</tr>
                         <tr><td colspan="2" style="height: 2rem;"></td></tr>
                         ${representativeHtml}
@@ -695,9 +695,56 @@ function App() {
                 </table>
             `;
         };
-        
+
         const annexureHtml = `<hr><h1>Annexure A: Schedule of Supports</h1>${quotesHtml}${grandTotalSummaryHtml}`;
-        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>body{font-family:sans-serif;margin:2rem}h1,h2,h3,h4{color:#333}table{width:100%;border-collapse:collapse;margin-bottom:1rem}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background-color:#f2f2f2}.text-right{text-align:right}.quote-section{margin-bottom:2rem;break-inside:avoid}.signature-table, .signature-table td {border: none;}</style></head><body><h1>${agreementFileContent.agreementContent.title}</h1>${mainContentHtml}${annexureHtml}${signatureBlockHtml()}</body></html>`
+        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            body { 
+                font-family: sans-serif;
+                margin: 0;
+            }
+            .page-container {
+                display: flex;
+                flex-direction: column;
+                min-height: 297mm; /* A4 height */
+                width: 210mm; /* A4 width */
+                margin: auto;
+                background: white;
+                box-shadow: 0 0 0.5cm rgba(0,0,0,0.5);
+            }
+            .content-body {
+                flex-grow: 1;
+                padding-left: 1in;
+                padding-right: 1in;
+                padding-top: 1em;
+                padding-bottom: 1em;
+            }
+            .header-img, .footer-img {
+                width: 100%;
+                display: block;
+            }
+            h1,h2,h3,h4{color:#333}
+            table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}
+            th,td{border:1px solid #ccc;padding:8px;text-align:left}
+            th{background-color:#f2f2f2}
+            .text-right{text-align:right}
+            .quote-section{margin-bottom:2rem;break-inside:avoid}
+            .signature-table, .signature-table td {border: none;}
+        </style></head><body>
+            <div class="page-container">
+                <div class="header"><img src="${HEADER_IMAGE_URL}" alt="Header" class="header-img"></div>
+                <div class="content-body">
+                    <h1>${agreementFileContent.agreementContent.title}</h1>
+                    ${mainContentHtml}
+                    ${annexureHtml}
+                    ${signatureBlockHtml()}
+                </div>
+                <div class="footer"><img src="${FOOTER_IMAGE_URL}" alt="Footer" class="footer-img"></div>
+            </div>
+        </body></html>`
         
         const newWindow = window.open('', '_blank');
         newWindow.document.write(finalHtml);
