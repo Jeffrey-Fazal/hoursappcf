@@ -689,7 +689,7 @@ const PeriodBreakdownSection = ({ results }) => (
 );
 
 // Component for collecting details and generating the final service agreement.
-const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
+const ServiceAgreementSection = ({ info, setInfo, onGenerate, onGenerateWord, isLoading }) => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         if (name.includes('.')) {
@@ -733,7 +733,10 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
                     <input type="email" name="planManager.email" value={info.planManager.email} onChange={handleInputChange} placeholder="Plan Manager's Email" className="w-full p-3 border rounded-md"/>
                 </>)}
             </div>
-            <div className="text-center mt-6"><button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">Generate Service Agreement</button></div>
+            <div className="text-center mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                <button onClick={onGenerate} disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md shadow-md hover:bg-purple-700 no-print disabled:bg-gray-400">Generate & Print</button>
+                <button onClick={onGenerateWord} disabled={isLoading} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-md shadow-md hover:bg-blue-700 no-print disabled:bg-gray-400">Download as Word</button>
+            </div>
         </Section>
     );
 };
@@ -877,16 +880,16 @@ function App() {
         }));
     }, []);
     
-    const handleGenerateAgreement = () => {
+    const getAgreementHtml = () => {
         if (!serviceAgreementInfo.participantName || savedQuotes.length === 0) {
             setError("Please provide a participant name and save at least one quote before generating an agreement.");
             window.scrollTo(0, 0);
-            return;
+            return null;
         }
 
         if (!agreementFileContent || !agreementFileContent.agreementContent) {
             setError("Service agreement template could not be loaded or is in the wrong format.");
-            return;
+            return null;
         }
 
         const dataMap = {
@@ -1006,7 +1009,7 @@ function App() {
         };
 
         const annexureHtml = `<hr><h1>Annexure A: Schedule of Supports</h1>${quotesHtml}${grandTotalSummaryHtml}`;
-        const finalHtml = `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>
+        return `<html><head><title>Service Agreement - ${serviceAgreementInfo.participantName}</title><style>
             @page {
                 size: A4;
                 margin: 0;
@@ -1054,10 +1057,30 @@ function App() {
                 <div class="footer"><img src="${FOOTER_IMAGE_URL}" alt="Footer" class="footer-img"></div>
             </div>
         </body></html>`;
-        
-        const newWindow = window.open('', '_blank');
-        newWindow.document.write(finalHtml);
-        newWindow.document.close();
+    };
+
+    const handleGenerateAgreement = () => {
+        const finalHtml = getAgreementHtml();
+        if (finalHtml) {
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(finalHtml);
+            newWindow.document.close();
+        }
+    };
+
+    const handleGenerateWordDoc = () => {
+        const finalHtml = getAgreementHtml();
+        if (finalHtml) {
+            const blob = new Blob([finalHtml], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Service_Agreement_${serviceAgreementInfo.participantName}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
     };
 
     const printHandlers = {
@@ -1190,7 +1213,15 @@ function App() {
                                 
                 <PeriodBreakdownSection results={calculationResults} />
                 <SavedQuotesSection savedQuotes={savedQuotes} handlers={quoteHandlers} quoteDescription={quoteDescription} setQuoteDescription={setQuoteDescription} rates={rates} results={calculationResults} />
-                <div className="no-print"><ServiceAgreementSection info={serviceAgreementInfo} setInfo={setServiceAgreementInfo} onGenerate={handleGenerateAgreement} isLoading={isLoadingAgreement} /></div>
+                <div className="no-print">
+                    <ServiceAgreementSection 
+                        info={serviceAgreementInfo} 
+                        setInfo={setServiceAgreementInfo} 
+                        onGenerate={handleGenerateAgreement} 
+                        onGenerateWord={handleGenerateWordDoc}
+                        isLoading={isLoadingAgreement} 
+                    />
+                </div>
             </main>
         </div>
     );
