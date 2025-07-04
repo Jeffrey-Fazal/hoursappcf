@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 // --- Constants ---
+// URLs for fetching external data. These are hosted on a public Cloudflare Pages instance.
 const NDIS_RATES_URL = 'https://hoursappcf.pages.dev/ndisrates2025.json';
 const SERVICE_AGREEMENT_URL = 'https://hoursappcf.pages.dev/sa-sjon-generic.json';
+// URLs for header and footer images used in the generated service agreement.
 const HEADER_IMAGE_URL = 'https://hoursappcf.pages.dev/images/pc-header.png';
 const FOOTER_IMAGE_URL = 'https://hoursappcf.pages.dev/images/pc-footer.png';
-const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19,2025-04-20,2025-04-21,2025-04-25,2025-05-05,2025-08-13,2025-10-06,2025-12-24,2025-12-25,2025-12-26';
+// Default public holidays for Queensland, 2025.
+const DEFAULT_QLD_PUBLIC_HOLIDAYS = '2025-01-01,2025-01-27,2025-04-18,2025-04-19,2025-04-21,2025-04-25,2025-05-05,2025-08-13,2025-10-06,2025-12-25,2025-12-26';
+// An array to map the numeric day of the week from Date.getDay() to a string.
 const WEEK_DAYS_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+// Constant object holding the service provider's details for the service agreement.
 const PROVIDER_DETAILS = {
     name: 'Pivotal Connect Pty Ltd',
     abn: '32 674 328 182',
@@ -15,24 +20,33 @@ const PROVIDER_DETAILS = {
 };
 
 // --- Helper Functions ---
+// Returns the current date in 'YYYY-MM-DD' format.
 const getTodayDate = () => new Date().toISOString().split('T')[0];
+// Returns the date one year from today in 'YYYY-MM-DD' format.
 const getOneYearFromToday = () => {
     const nextYear = new Date();
     nextYear.setFullYear(nextYear.getFullYear() + 1);
     return nextYear.toISOString().split('T')[0];
 };
+// Rounds a number up to two decimal places, essential for financial calculations.
 const roundUpToTwoDecimals = (num) => typeof num === 'number' && !isNaN(num) ? Math.ceil(num * 100) / 100 : 0;
+// Formats a number to a string with two decimal places and thousand separators for display.
 const formatNumber = (num) => typeof num === 'number' && !isNaN(num) ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-
 // --- Custom Hooks ---
+/**
+ * A custom hook to persist state in the browser's local storage.
+ * @param {string} key The key to use for local storage.
+ * @param {*} initialValue The initial value if no value is found in local storage.
+ * @returns A state and a function to update it, similar to useState.
+ */
 const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
         try {
             const item = window.localStorage.getItem(key);
             return item ? JSON.parse(item) : initialValue;
         } catch (error) {
-            console.error(error);
+            console.error("Error reading from localStorage", error);
             return initialValue;
         }
     });
@@ -41,13 +55,20 @@ const useLocalStorage = (key, initialValue) => {
         try {
             window.localStorage.setItem(key, JSON.stringify(storedValue));
         } catch (error) {
-            console.error(error);
+            console.error("Error writing to localStorage", error);
         }
     }, [key, storedValue]);
 
     return [storedValue, setStoredValue];
 };
 
+/**
+ * A generic custom hook to handle fetching JSON data from a URL.
+ * It manages loading and error states for the asynchronous request.
+ * @param {string} url The URL to fetch data from.
+ * @param {*} initialData The initial data state before the fetch completes.
+ * @returns An object containing the fetched data, loading state, and error state.
+ */
 const useFetchData = (url, initialData = null) => {
     const [data, setData] = useState(initialData);
     const [isLoading, setIsLoading] = useState(true);
@@ -75,18 +96,32 @@ const useFetchData = (url, initialData = null) => {
     return { data, isLoading, error };
 };
 
-
 // --- Core Calculation Logic ---
+/**
+ * The main calculation engine of the application.
+ * It takes all user inputs and calculates the breakdown of hours and pay.
+ * @param {object} inputs An object containing all necessary state values for calculation.
+ * @returns {object} An object with all calculated totals, breakdowns, and any potential errors.
+ */
 const calculateAllTotals = (inputs) => {
     const { fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates } = inputs;
     
     const start = new Date(fromDate + 'T00:00:00');
     const end = new Date(toDate + 'T00:00:00');
 
+    // Return a default error state if dates are invalid.
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
-        return { error: 'Please enter valid "From" and "To" dates.' };
+        return { 
+            error: 'Please enter valid "From" and "To" dates.',
+            totalHours: 0, totalPay: 0, weekdayHours: 0, weekdayEveningHours: 0,
+            saturdayHours: 0, sundayHours: 0, publicHolidayHours: 0, weekdayPay: 0,
+            weekdayEveningPay: 0, saturdayPay: 0, sundayPay: 0, publicHolidayPay: 0,
+            calculatedTotalDays: 0, calculatedTotalWeekdays: 0, calculatedTotalSaturdays: 0,
+            calculatedTotalSundays: 0, calculatedTotalPublicHolidays: 0, calculatedFullWeeks: 0
+        };
     }
 
+    // Convert rate strings to numbers for calculation.
     const numRates = {
         weekday: parseFloat(rates.weekday.rate) || 0,
         weekdayEvening: parseFloat(rates.weekdayEvening.rate) || 0,
@@ -102,6 +137,7 @@ const calculateAllTotals = (inputs) => {
 
     const holidaySet = new Set(includePublicHolidays ? publicHolidaysInput.split(',').map(d => d.trim()).filter(Boolean) : []);
 
+    // Loop through each day in the selected date range.
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dayName = WEEK_DAYS_ORDER[d.getDay()];
         const dayInfo = weeklyDays[dayName];
@@ -110,6 +146,7 @@ const calculateAllTotals = (inputs) => {
         const hoursToday = parseFloat(dayInfo.hours) || 0;
         if (hoursToday === 0) continue;
 
+        // Determine if the day should be counted based on the recurrence type.
         let shouldCount = false;
         switch (recurringType) {
             case 'Daily': shouldCount = true; break;
@@ -119,15 +156,16 @@ const calculateAllTotals = (inputs) => {
                 if (Math.floor(daysSinceStart / 7) % 2 === 0) shouldCount = true;
                 break;
             case 'Monthly':
-                 if (d.getDate() <= 7) shouldCount = true;
+                 if (d.getDate() <= 7) shouldCount = true; // Assuming services occur in the first week of the month.
                  break;
             case 'Quarterly':
-                const month = d.getMonth();
-                if ([0, 3, 6, 9].includes(month) && d.getDate() <= 7) shouldCount = true;
+                const month = d.getMonth(); // 0-11
+                if ([0, 3, 6, 9].includes(month) && d.getDate() <= 7) shouldCount = true; // Assuming services occur in the first week of Jan, Apr, Jul, Oct.
                 break;
             default: shouldCount = true; break;
         }
 
+        // If the day should be counted, categorize it and add the hours.
         if (shouldCount) {
             totals.breakdown.days++;
             const currentDateString = d.toISOString().split('T')[0];
@@ -155,6 +193,7 @@ const calculateAllTotals = (inputs) => {
 
     const totalHours = totals.weekdayHours + totals.weekdayEveningHours + totals.saturdayHours + totals.sundayHours + totals.publicHolidayHours;
     
+    // Calculate pay for each category.
     const pay = {
         weekdayPay: totals.weekdayHours * numRates.weekday,
         weekdayEveningPay: totals.weekdayEveningHours * numRates.weekdayEvening,
@@ -165,6 +204,7 @@ const calculateAllTotals = (inputs) => {
     
     const totalPay = Object.values(pay).reduce((sum, p) => sum + p, 0);
     
+    // Return all calculated values, rounded for financial accuracy.
     return {
         totalHours: roundUpToTwoDecimals(totalHours), totalPay: roundUpToTwoDecimals(totalPay),
         weekdayHours: roundUpToTwoDecimals(totals.weekdayHours), weekdayEveningHours: roundUpToTwoDecimals(totals.weekdayEveningHours),
@@ -179,8 +219,8 @@ const calculateAllTotals = (inputs) => {
     };
 };
 
-
 // --- Child Components ---
+// A reusable component for creating styled sections with a title.
 const Section = ({ id, title, children, color = 'blue', className = '' }) => (
     <div id={id} className={`p-4 sm:p-6 border border-${color}-200 rounded-lg bg-${color}-50 ${className}`}>
         {title && <h3 className="text-xl font-semibold text-gray-800 mb-4">{title}</h3>}
@@ -188,25 +228,33 @@ const Section = ({ id, title, children, color = 'blue', className = '' }) => (
     </div>
 );
 
-const FloatingNav = ({ totalPay, totalHours }) => {
+// A floating navigation bar on the right side of the screen for easy navigation.
+const FloatingNav = ({ totalPay, totalHours, transportCost }) => {
     const navItems = [
-        { href: '#date-range-section', label: 'Date & Recurrence' }, { href: '#applicable-days', label: 'Applicable Days & Hours' },
-        { href: '#ndis-rates', label: 'NDIS Rate Finder' }, { href: '#hourly-rates', label: 'Manual Rates' },
-        { href: '#budget', label: 'Budget Information'}, { href: '#public-holidays', label: 'Public Holidays' },
-        { href: '#results', label: 'Results' }, { href: '#saved-quotes', label: 'Saved Quotes' },
-        { href: '#service-agreement', label: 'Service Agreement'},
+        { href: '#date-range-section', label: '1. Date & Recurrence' },
+        { href: '#budget', label: '2. Budget Information'},
+        { href: '#applicable-days', label: '3. Applicable Days & Hours' },
+        { href: '#ndis-rates', label: '4. NDIS Rate Finder' },
+        { href: '#transport-calculator', label: '5. Transport Calculator' },
+        { href: '#hourly-rates', label: '6. Manual Rates' },
+        { href: '#public-holidays', label: '7. Public Holidays' },
+        { href: '#results', label: 'Results' },
+        { href: '#saved-quotes', label: '8. Saved Quotes' },
+        { href: '#service-agreement', label: '9. Service Agreement'},
     ];
     
     useEffect(() => {
         document.documentElement.style.scrollBehavior = 'smooth';
         return () => { document.documentElement.style.scrollBehavior = 'auto'; };
     }, []);
+    
+    const grandTotal = totalPay + transportCost;
 
     return (
         <div className="fixed top-1/2 right-4 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm shadow-2xl rounded-xl p-4 border border-gray-200 w-64 hidden lg:block no-print">
             <div className="text-center mb-4 pb-4 border-b">
                 <p className="text-sm font-semibold text-gray-600">Total Projected Budget</p>
-                <p className="text-2xl font-bold text-purple-700">${formatNumber(totalPay)}</p>
+                <p className="text-2xl font-bold text-purple-700">${formatNumber(grandTotal)}</p>
                 <p className="text-sm font-semibold text-gray-600 mt-2">Total Projected Hours</p>
                 <p className="text-2xl font-bold text-indigo-700">{formatNumber(totalHours)}</p>
             </div>
@@ -215,8 +263,9 @@ const FloatingNav = ({ totalPay, totalHours }) => {
     );
 };
 
+// Component for selecting the date range and recurrence type.
 const DateRangeSection = ({ fromDate, toDate, setFromDate, setToDate, recurringType, setRecurringType }) => (
-    <Section id="date-range-section" title="Date Range & Recurring Type" color="blue">
+    <Section id="date-range-section" title="1. Date Range & Recurring Type" color="blue">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div><label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">From Date:</label><input type="date" id="fromDate" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
             <div><label htmlFor="toDate" className="block text-sm font-semibold text-gray-700 mb-1">To Date:</label><input type="date" id="toDate" value={toDate} onChange={e => setToDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/></div>
@@ -231,8 +280,9 @@ const DateRangeSection = ({ fromDate, toDate, setFromDate, setToDate, recurringT
     </Section>
 );
 
+// Component for selecting which days of the week services apply to and their hours.
 const ApplicableDaysSection = ({ weeklyDays, handlers, suggestedDailyHours }) => (
-    <Section id="applicable-days" title="Applicable Days & Hours per Day" color="yellow">
+    <Section id="applicable-days" title="3. Applicable Days & Hours per Day" color="yellow">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {Object.entries(weeklyDays).map(([day, { selected, hours, shift }]) => {
                 const isWeekday = !['Saturday', 'Sunday'].includes(day);
@@ -259,32 +309,45 @@ const ApplicableDaysSection = ({ weeklyDays, handlers, suggestedDailyHours }) =>
     </Section>
 );
 
+// A reusable dropdown component with search functionality.
 const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], excludeKeywords = [], isLoading, value }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [isFocused, setIsFocused] = useState(false);
     useEffect(() => { setSearchTerm(value || ''); }, [value]);
     const filteredItems = useMemo(() => {
         if (isLoading || !items) return [];
-        const preFiltered = items.filter(item => {
-            const itemNameLower = (item["Support Item Name"] || '').toLowerCase();
-            return includeKeywords.every(keyword => itemNameLower.includes(keyword)) &&
-                   !excludeKeywords.some(keyword => itemNameLower.includes(keyword));
-        });
-        if (!searchTerm.trim()) return [];
+        let localItems = items;
+
+        if (includeKeywords.length > 0) {
+            localItems = localItems.filter(item => {
+                const itemNameLower = (item["Support Item Name"] || '').toLowerCase();
+                return includeKeywords.every(keyword => itemNameLower.includes(keyword));
+            });
+        }
+        if (excludeKeywords.length > 0) {
+            localItems = localItems.filter(item => {
+                const itemNameLower = (item["Support Item Name"] || '').toLowerCase();
+                return !excludeKeywords.some(keyword => itemNameLower.includes(keyword));
+            });
+        }
+
+        if (!searchTerm.trim()) return localItems.slice(0, 100);
+        
         const searchWords = searchTerm.toLowerCase().replace(/[-/]/g, ' ').split(' ').filter(Boolean);
-        return preFiltered.filter(item => {
+        return localItems.filter(item => {
             const itemName = (item["Support Item Name"] || '').toLowerCase().replace(/[-/]/g, ' ');
             const itemNumber = (item["Support Item Number"] || '').toLowerCase();
             return itemNumber.includes(searchTerm.toLowerCase()) || searchWords.every(word => itemName.includes(word));
         }).slice(0, 100);
     }, [searchTerm, items, includeKeywords, excludeKeywords, isLoading]);
+    
     const handleSelect = (item) => { onSelectItem(item); setSearchTerm(item["Support Item Name"]); setIsFocused(false); };
 
     return (
         <div className="relative">
             <label className="block text-sm font-semibold text-gray-700 mb-1">{label}:</label>
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsFocused(true)} onBlur={() => setTimeout(() => setIsFocused(false), 200)} placeholder={isLoading ? "Loading rates..." : "Search..."} className="w-full p-3 border border-gray-300 rounded-md shadow-sm" disabled={isLoading}/>
-            {isFocused && searchTerm && (
+            {isFocused && (
                 <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
                     {filteredItems.length > 0 ? (
                         filteredItems.map(item => (<li key={item["Support Item Number"]} onMouseDown={() => handleSelect(item)} className="p-3 hover:bg-gray-100 cursor-pointer"><p className="font-semibold text-sm">{item["Support Item Name"]}</p><p className="text-xs text-gray-500">{item["Support Item Number"]}</p></li>))
@@ -295,16 +358,17 @@ const SearchableDropdown = ({ label, items, onSelectItem, includeKeywords = [], 
     );
 };
 
+// Component for finding and selecting NDIS rates.
 const NdisRateFinderSection = ({ rates, ndisRates, isLoading, handleNdisRateSelect }) => {
     const rateFinderConfig = [
-        { key: 'weekday', label: 'Weekday Day', include: [], exclude: ['evening', 'saturday', 'sunday', 'public holiday'] },
+        { key: 'weekday', label: 'Weekday Day', include: [], exclude: ['evening', 'saturday', 'sunday', 'public holiday', 'provider travel', 'activity based transport'] },
         { key: 'weekdayEvening', label: 'Weekday Evening', include: ['weekday', 'evening'], exclude: [] },
         { key: 'saturday', label: 'Saturday', include: ['saturday'], exclude: [] },
         { key: 'sunday', label: 'Sunday', include: ['sunday'], exclude: [] },
         { key: 'publicHoliday', label: 'Public Holiday', include: ['public holiday'], exclude: [] },
     ];
     return (
-        <Section id="ndis-rates" title="NDIS Rate Finder" color="sky">
+        <Section id="ndis-rates" title="4. NDIS Rate Finder (Optional)" color="sky">
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
                 {rateFinderConfig.map(config => (
                     <div key={config.key}>
@@ -317,8 +381,9 @@ const NdisRateFinderSection = ({ rates, ndisRates, isLoading, handleNdisRateSele
     );
 };
 
+// Component for manually entering or overriding hourly rates.
 const ManualRatesSection = ({ rates, handlers }) => (
-    <Section id="hourly-rates" title="Manual Hourly Rates" color="green">
+    <Section id="hourly-rates" title="6. Manual Hourly Rates" color="green">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div><label className="block text-sm font-semibold mb-1">Weekday Day:</label><input type="number" value={rates.weekday.rate} onChange={e => handlers.handleRateChange('weekday', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
             <div><label className="block text-sm font-semibold mb-1">Weekday Eve:</label><input type="number" value={rates.weekdayEvening.rate} onChange={e => handlers.handleRateChange('weekdayEvening', e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border rounded-md" min="0" placeholder="0.00" /></div>
@@ -330,8 +395,9 @@ const ManualRatesSection = ({ rates, handlers }) => (
     </Section>
 );
 
-const BudgetSection = ({ budget, setBudget, budgetMode, setBudgetMode, calculationResults, handlers }) => (
-    <Section id="budget" title="Budget Information" color="teal">
+// Component for budget-based calculations.
+const BudgetSection = ({ budget, setBudget, budgetMode, setBudgetMode, calculationResults, handlers, totalProjectedCost }) => (
+    <Section id="budget" title="2. Budget Information" color="teal">
         <div className="flex space-x-4 mb-4">
             <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="lock" checked={budgetMode === 'lock'} onChange={() => setBudgetMode('lock')}/><span className="ml-2">Set Budget</span></label>
             <label className="inline-flex items-center"><input type="radio" className="form-radio" name="budgetOption" value="noBudget" checked={budgetMode === 'noBudget'} onChange={() => setBudgetMode('noBudget')}/><span className="ml-2">No Budget</span></label>
@@ -341,31 +407,48 @@ const BudgetSection = ({ budget, setBudget, budgetMode, setBudgetMode, calculati
                 <label htmlFor="budget" className="block text-sm font-semibold text-gray-700 mb-1">Your Total Budget ($):</label>
                 <input type="number" id="budget" value={budget} onChange={(e) => setBudget(e.target.value)} onFocus={handlers.handleFocus} className="w-full p-3 border border-gray-300 rounded-md" min="0" placeholder="0.00"/>
                 <div className="mt-4 text-gray-800">
-                    {calculationResults.totalPay > 0 ? (
+                    {totalProjectedCost > 0 ? (
                         <>
                             <p className="text-lg font-semibold">Budget vs. Projected: {' '}
-                                {calculationResults.totalPay > budget ? (<span className="text-red-600 font-bold">OVER by ${formatNumber(calculationResults.totalPay - budget)}</span>) : calculationResults.totalPay < budget ? (<span className="text-green-600 font-bold">UNDER by ${formatNumber(budget - calculationResults.totalPay)}</span>) : (<span className="text-blue-600 font-bold">ON BUDGET</span>)}
+                                {totalProjectedCost > budget ? (<span className="text-red-600 font-bold">OVER by ${formatNumber(totalProjectedCost - budget)}</span>) : totalProjectedCost < budget ? (<span className="text-green-600 font-bold">UNDER by ${formatNumber(budget - totalProjectedCost)}</span>) : (<span className="text-blue-600 font-bold">ON BUDGET</span>)}
                             </p>
-                            <div className="mt-4 text-center"><button onClick={handlers.applySuggestedHours} className="px-6 py-2 bg-teal-600 text-white font-bold rounded-md shadow-md hover:bg-teal-700">Apply Suggested Hours</button></div>
+                            <div className="mt-4 text-center"><button onClick={handlers.applySuggestedValues} className="px-6 py-2 bg-teal-600 text-white font-bold rounded-md shadow-md hover:bg-teal-700">Apply Suggested Hours & ABT</button></div>
                         </>
-                    ) : (<p className="text-lg font-semibold">Enter rates and hours to get suggestions.</p>)}
+                    ) : (<p className="text-lg font-semibold">Enter rates, hours, and travel to get suggestions.</p>)}
                 </div>
             </div>
         )}
     </Section>
 );
 
+// Component for managing public holiday calculations.
 const PublicHolidaysSection = ({ includePublicHolidays, setIncludePublicHolidays, publicHolidaysInput, setPublicHolidaysInput }) => (
-     <Section id="public-holidays" title="Public Holidays" color="red">
+   <Section id="public-holidays" title="7. Public Holidays" color="red">
         <div className="flex space-x-4 mb-4">
             <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={includePublicHolidays} onChange={() => setIncludePublicHolidays(true)}/><span className="ml-2">Include</span></label>
             <label className="inline-flex items-center"><input type="radio" className="form-radio" checked={!includePublicHolidays} onChange={() => setIncludePublicHolidays(false)}/><span className="ml-2">Skip</span></label>
         </div>
-        {includePublicHolidays && (<div><label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">Custom Public Holidays (comma-separated, accepter-MM-DD):</label><textarea id="publicHolidays" rows="3" value={publicHolidaysInput} onChange={e => setPublicHolidaysInput(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md"></textarea></div>)}
+        {includePublicHolidays && (
+            <div>
+                <label htmlFor="publicHolidays" className="block text-sm font-semibold text-gray-700 mb-1">
+                    Custom Public Holidays (comma-separated, e.g., 2025-12-25):
+                </label>
+                <textarea 
+                    id="publicHolidays" 
+                    rows="3" 
+                    value={publicHolidaysInput} 
+                    onChange={e => setPublicHolidaysInput(e.target.value)} 
+                    className="w-full p-3 border border-gray-300 rounded-md">
+                </textarea>
+            </div>
+        )}
     </Section>
 );
 
-const ResultsSection = ({ results }) => (
+// Component displaying the final calculation results.
+const ResultsSection = ({ results, transportCost }) => {
+    const grandTotalPay = results.totalPay + transportCost;
+    return (
     <div id="results">
         <div className="mt-8 p-6 bg-indigo-600 rounded-xl shadow-lg text-white text-center">
             <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Hours:</h2><p className="text-4xl sm:text-5xl font-extrabold mb-4">{formatNumber(results.totalHours)}</p>
@@ -378,7 +461,10 @@ const ResultsSection = ({ results }) => (
             </div>
         </div>
         <div className="mt-6 p-6 bg-purple-700 rounded-xl shadow-lg text-white text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Budget:</h2><p className="text-4xl sm:text-5xl font-extrabold mb-4">${formatNumber(results.totalPay)}</p>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Total Projected Budget:</h2>
+            <p className="text-sm">Services: ${formatNumber(results.totalPay)}</p>
+            {transportCost > 0 && <p className="text-sm">Transport: ${formatNumber(transportCost)}</p>}
+            <p className="text-4xl sm:text-5xl font-extrabold my-2">${formatNumber(grandTotalPay)}</p>
              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-left">
                 <div className="bg-purple-800 p-3 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-purple-200">W/day Day:</h3><p className="text-2xl font-bold">${formatNumber(results.weekdayPay)}</p></div>
                 <div className="bg-purple-800 p-3 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-purple-200">W/day Eve:</h3><p className="text-2xl font-bold">${formatNumber(results.weekdayEveningPay)}</p></div>
@@ -388,8 +474,119 @@ const ResultsSection = ({ results }) => (
             </div>
         </div>
     </div>
-);
+    );
+};
 
+// Component for calculating transport costs, now with separate NPT and ABT sections.
+const TransportSection = ({ transport, setTransport, calculatedDays, suggestedAbtKm, ndisRates, isLoadingRates, onRateSelect }) => {
+    const handleInputChange = (type, field, value) => {
+        setTransport(prev => ({
+            ...prev,
+            [type]: {
+                ...prev[type],
+                [field]: value
+            }
+        }));
+    };
+    
+    const calculateCost = (type) => {
+        const details = transport[type];
+        if (!details.isEnabled || !calculatedDays) return 0;
+        const days = calculatedDays;
+        const km = parseFloat(details.km) || 0;
+        const rate = parseFloat(details.rate) || 0;
+        return roundUpToTwoDecimals(days * km * rate);
+    };
+
+    const nptCost = calculateCost('npt');
+    const abtCost = calculateCost('abt');
+
+    return (
+        <Section id="transport-calculator" title="5. Transport Calculator (Optional)" color="orange">
+            <div className="space-y-6">
+                {/* NPT Section */}
+                <div className="p-4 border rounded-lg bg-white">
+                    <div className="flex items-center space-x-3 mb-4">
+                        <input 
+                            type="checkbox" 
+                            id="enableNpt" 
+                            checked={transport.npt.isEnabled} 
+                            onChange={e => handleInputChange('npt', 'isEnabled', e.target.checked)}
+                            className="form-checkbox h-5 w-5 text-orange-600 rounded"
+                        />
+                        <label htmlFor="enableNpt" className="text-lg font-semibold text-gray-700">Non-Provider Travel (NPT)</label>
+                    </div>
+                    {transport.npt.isEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                            <SearchableDropdown 
+                                label="NPT Item"
+                                items={ndisRates}
+                                value={transport.npt.name}
+                                onSelectItem={item => onRateSelect('npt', item)}
+                                includeKeywords={['provider travel - non-labour costs']}
+                                isLoading={isLoadingRates}
+                            />
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Est. KM per Trip:</label>
+                                <input type="number" value={transport.npt.km} onChange={e => handleInputChange('npt', 'km', e.target.value)} className="w-full p-3 border rounded-md" min="0" placeholder="e.g., 10" disabled={calculatedDays === 0}/>
+                            </div>
+                        </div>
+                    )}
+                    {transport.npt.isEnabled && nptCost > 0 && (
+                        <div className="mt-4 p-3 bg-orange-100 rounded-lg text-center">
+                            <p className="text-md font-semibold text-orange-800">NPT Cost: ${formatNumber(nptCost)}</p>
+                            <p className="text-sm text-gray-600">
+                                ({calculatedDays} days x {transport.npt.km || 0} km x ${formatNumber(parseFloat(transport.npt.rate)) || '0.00'})
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* ABT Section */}
+                <div className="p-4 border rounded-lg bg-white">
+                     <div className="flex items-center space-x-3 mb-4">
+                        <input 
+                            type="checkbox" 
+                            id="enableAbt" 
+                            checked={transport.abt.isEnabled} 
+                            onChange={e => handleInputChange('abt', 'isEnabled', e.target.checked)}
+                            className="form-checkbox h-5 w-5 text-amber-600 rounded"
+                        />
+                        <label htmlFor="enableAbt" className="text-lg font-semibold text-gray-700">Activity Based Travel (ABT)</label>
+                    </div>
+                    {transport.abt.isEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                             <SearchableDropdown 
+                                label="ABT Item"
+                                items={ndisRates}
+                                value={transport.abt.name}
+                                onSelectItem={item => onRateSelect('abt', item)}
+                                includeKeywords={['activity based transport']}
+                                isLoading={isLoadingRates}
+                            />
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Est. KM per Trip:</label>
+                                <input type="number" value={transport.abt.km} onChange={e => handleInputChange('abt', 'km', e.target.value)} className="w-full p-3 border rounded-md" min="0" placeholder="e.g., 15" disabled={calculatedDays === 0}/>
+                                {suggestedAbtKm > 0 && (<p className="text-xs text-center text-teal-600 font-semibold mt-1">Suggested: {formatNumber(suggestedAbtKm)} km</p>)}
+                            </div>
+                        </div>
+                    )}
+                     {transport.abt.isEnabled && abtCost > 0 && (
+                        <div className="mt-4 p-3 bg-amber-100 rounded-lg text-center">
+                            <p className="text-md font-semibold text-amber-800">ABT Cost: ${formatNumber(abtCost)}</p>
+                            <p className="text-sm text-gray-600">
+                                ({calculatedDays} days x {transport.abt.km || 0} km x ${formatNumber(parseFloat(transport.abt.rate)) || '0.00'})
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Section>
+    );
+};
+
+
+// A component to display a single saved quote, including its transport costs.
 const SavedQuoteItem = ({ quote, onDelete, onPrint }) => {
     const quoteRef = useRef();
     const quoteDetails = useMemo(() => {
@@ -406,26 +603,67 @@ const SavedQuoteItem = ({ quote, onDelete, onPrint }) => {
     return (
         <div ref={quoteRef} className="bg-white p-4 rounded-lg shadow-md border printable-area">
             <div className="flex justify-between items-start gap-4">
-                <div className="flex-grow"><p className="font-bold text-gray-800">{quote.description}</p><p className="text-sm text-gray-600 mt-1"><strong>Total budget:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span></p></div>
+                <div className="flex-grow">
+                    <p className="font-bold text-gray-800">{quote.description}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                        <strong>Total budget:</strong> <span className="font-semibold">${formatNumber(quote.totalPay)}</span> | <strong>Total Hours:</strong> <span className="font-semibold">{formatNumber(quote.totalHours)}</span>
+                    </p>
+                </div>
                 <div className="flex gap-2 no-print"><button onClick={() => onPrint(quoteRef)} className="text-blue-500 hover:text-blue-700 font-semibold text-sm p-1">Print</button><button onClick={() => onDelete(quote.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm p-1">Delete</button></div>
             </div>
             <div className="mt-4 pt-4 border-t overflow-x-auto">
-                <table className="w-full text-sm text-left"><thead className="bg-gray-50"><tr><th className="p-2 font-semibold">Service</th><th className="p-2 font-semibold">Item Name & Number</th><th className="p-2 font-semibold text-right">Rate</th><th className="p-2 font-semibold text-right">Hours</th><th className="p-2 font-semibold text-right">Total</th></tr></thead>
+                <table className="w-full text-sm text-left"><thead className="bg-gray-50"><tr><th className="p-2 font-semibold">Service</th><th className="p-2 font-semibold">Item Name & Number</th><th className="p-2 font-semibold text-right">Rate</th><th className="p-2 font-semibold text-right">Qty / Hours</th><th className="p-2 font-semibold text-right">Total</th></tr></thead>
                     <tbody>
-                        {quoteDetails.map(detail => (<tr key={detail.label} className="border-b"><td className="p-2">{detail.label}</td><td className="p-2"><p>{detail.rateInfo.name || 'N/A'}</p><p className="font-mono text-xs text-gray-600">{detail.rateInfo.number || 'Manual Rate'}</p></td><td className="p-2 text-right">${formatNumber(parseFloat(detail.rateInfo.rate))}</td><td className="p-2 text-right">{formatNumber(detail.hours)}</td><td className="p-2 text-right font-semibold">${formatNumber(detail.pay)}</td></tr>))}
+                        {quoteDetails.map(detail => (<tr key={detail.label} className="border-b">
+                            <td className="p-2">
+                                <p>{detail.label}</p>
+                                <p className="text-xs text-gray-500 font-normal">{quote.fromDate} to {quote.toDate}</p>
+                            </td>
+                            <td className="p-2"><p>{detail.rateInfo.name || 'N/A'}</p><p className="font-mono text-xs text-gray-600">{detail.rateInfo.number || 'Manual Rate'}</p></td>
+                            <td className="p-2 text-right">${formatNumber(parseFloat(detail.rateInfo.rate))}</td>
+                            <td className="p-2 text-right">{formatNumber(detail.hours)}</td>
+                            <td className="p-2 text-right font-semibold">${formatNumber(detail.pay)}</td>
+                        </tr>))}
+                        
+                        {quote.transport && quote.transport.npt && (
+                             <tr className="border-b bg-orange-50">
+                                 <td className="p-2">
+                                     <p>Transport (NPT)</p>
+                                     <p className="text-xs text-gray-500 font-normal">{quote.fromDate} to {quote.toDate}</p>
+                                 </td>
+                                 <td className="p-2"><p>{quote.transport.npt.name}</p><p className="font-mono text-xs text-gray-600">{quote.transport.npt.itemCode || ''}</p></td>
+                                 <td className="p-2 text-right">${formatNumber(parseFloat(quote.transport.npt.rate))} / km</td>
+                                 <td className="p-2 text-right">{quote.transport.npt.totalKm} km</td>
+                                 <td className="p-2 text-right font-semibold">${formatNumber(quote.transport.npt.cost)}</td>
+                             </tr>
+                        )}
+                         {quote.transport && quote.transport.abt && (
+                             <tr className="border-b bg-amber-50">
+                                 <td className="p-2">
+                                     <p>Transport (ABT)</p>
+                                     <p className="text-xs text-gray-500 font-normal">{quote.fromDate} to {quote.toDate}</p>
+                                 </td>
+                                 <td className="p-2"><p>{quote.transport.abt.name}</p><p className="font-mono text-xs text-gray-600">{quote.transport.abt.itemCode || ''}</p></td>
+                                 <td className="p-2 text-right">${formatNumber(parseFloat(quote.transport.abt.rate))} / km</td>
+                                 <td className="p-2 text-right">{quote.transport.abt.totalKm} km</td>
+                                 <td className="p-2 text-right font-semibold">${formatNumber(quote.transport.abt.cost)}</td>
+                             </tr>
+                        )}
                     </tbody>
-                     <tfoot className="font-bold"><tr><td colSpan="3" className="p-2 text-right">Grand Total:</td><td className="p-2 text-right">{formatNumber(quote.totalHours)}</td><td className="p-2 text-right">${formatNumber(quote.totalPay)}</td></tr></tfoot>
+                    <tfoot className="font-bold"><tr><td colSpan="3" className="p-2 text-right">Grand Total:</td><td className="p-2 text-right">{formatNumber(quote.totalHours)} hrs</td><td className="p-2 text-right">${formatNumber(quote.totalPay)}</td></tr></tfoot>
                 </table>
             </div>
         </div>
     );
 };
 
+
+// Component for saving the current calculation as a quote.
 const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteDescription, rates, results }) => (
-    <Section id="saved-quotes" title="Saved Quotes" color="cyan">
+    <Section id="saved-quotes" title="8. Save Calculation as Quote" color="cyan">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
             <input type="text" value={quoteDescription} onChange={e => setQuoteDescription(e.target.value)} placeholder="e.g., Standard weekly service" className="w-full p-3 border border-gray-300 rounded-md shadow-sm"/>
-            <button onClick={() => handlers.handleAddQuote({ rates, results })} disabled={!results.totalPay && !results.totalHours} className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400">Save Quote</button>
+            <button onClick={() => handlers.handleAddQuote({ rates, results })} disabled={results.totalPay === 0 && results.totalHours === 0} className="px-6 py-3 bg-cyan-600 text-white font-bold rounded-md shadow-md hover:bg-cyan-700 w-full sm:w-auto flex-shrink-0 disabled:bg-gray-400">Save Quote</button>
         </div>
         {savedQuotes.length > 0 && (
             <div className="mt-6 space-y-4">
@@ -436,8 +674,9 @@ const SavedQuotesSection = ({ savedQuotes, handlers, quoteDescription, setQuoteD
     </Section>
 );
 
+// Component showing a breakdown of the calculated period.
 const PeriodBreakdownSection = ({ results }) => (
-    <Section id="period-breakdown" title="Period Breakdown" color="gray">
+    <Section id="period-breakdown" title="Calculation Breakdown" color="gray">
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-4">
             <div className="p-3 bg-white rounded-lg shadow-sm text-center"><h3 className="text-sm font-semibold">Counted Days:</h3><p className="text-xl font-bold">{results.calculatedTotalDays}</p></div>
             <div className="p-3 bg-white rounded-lg shadow-sm text-center"><h3 className="text-sm font-semibold">Weekdays:</h3><p className="text-xl font-bold">{results.calculatedTotalWeekdays}</p></div>
@@ -449,6 +688,7 @@ const PeriodBreakdownSection = ({ results }) => (
     </Section>
 );
 
+// Component for collecting details and generating the final service agreement.
 const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -472,7 +712,7 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
     };
 
     return (
-        <Section id="service-agreement" title="Generate Service Agreement" color="purple">
+        <Section id="service-agreement" title="9. Generate Service Agreement" color="purple">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input name="participantName" value={info.participantName} onChange={handleInputChange} placeholder="Participant's Name" className="w-full p-3 border rounded-md"/>
                 <input name="participantAddress" value={info.participantAddress} onChange={handleInputChange} placeholder="Participant's Address" className="w-full p-3 border rounded-md"/>
@@ -497,7 +737,6 @@ const ServiceAgreementSection = ({ info, setInfo, onGenerate, isLoading }) => {
         </Section>
     );
 };
-
 
 // --- Main App Component ---
 function App() {
@@ -525,6 +764,10 @@ function App() {
         participantName: '', participantAddress: '', ndisNumber: '', agreementDate: getTodayDate(), representativeName: '',
         fundingType: [], planManager: { name: '', address: '', phone: '', email: '' }
     });
+    const [transport, setTransport] = useState({
+        npt: { isEnabled: false, km: '', rate: '1.00', itemCode: '', name: '' },
+        abt: { isEnabled: false, km: '', rate: '1.00', itemCode: '', name: '' }
+    });
 
     // --- Data Fetching ---
     const { data: ndisRates, isLoading: isLoadingRates, error: rateError } = useFetchData(NDIS_RATES_URL, []);
@@ -532,17 +775,45 @@ function App() {
     
     // --- Calculations ---
     const calculationResults = useMemo(() => calculateAllTotals({ fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates }), [fromDate, toDate, recurringType, weeklyDays, includePublicHolidays, publicHolidaysInput, rates]);
-    const suggestedDailyHours = useMemo(() => {
-        let newSuggested = {};
-        if (budgetMode === 'lock' && budget > 0 && calculationResults.totalPay > 0) {
-            const hourScalingFactor = budget / calculationResults.totalPay;
-            Object.entries(weeklyDays).forEach(([dayName, { selected, hours }]) => {
-                const currentHours = parseFloat(hours) || 0;
-                newSuggested[dayName] = { hours: selected ? currentHours * hourScalingFactor : 0 };
-            });
+    
+    const nptCost = useMemo(() => {
+        if (!transport.npt.isEnabled || !calculationResults.calculatedTotalDays) return 0;
+        return roundUpToTwoDecimals((parseFloat(transport.npt.km) || 0) * (parseFloat(transport.npt.rate) || 0) * calculationResults.calculatedTotalDays);
+    }, [transport.npt, calculationResults.calculatedTotalDays]);
+
+    const abtCost = useMemo(() => {
+        if (!transport.abt.isEnabled || !calculationResults.calculatedTotalDays) return 0;
+        return roundUpToTwoDecimals((parseFloat(transport.abt.km) || 0) * (parseFloat(transport.abt.rate) || 0) * calculationResults.calculatedTotalDays);
+    }, [transport.abt, calculationResults.calculatedTotalDays]);
+
+    const totalTransportCost = nptCost + abtCost;
+
+    const budgetSuggestions = useMemo(() => {
+        const suggestions = { suggestedHours: {}, suggestedAbtKm: 0 };
+        if (budgetMode !== 'lock' || !budget || budget <= 0) return suggestions;
+
+        const totalBudget = parseFloat(budget) || 0;
+        const fixedNptCost = nptCost;
+        const flexibleBudget = totalBudget - fixedNptCost;
+
+        const initialFlexCosts = calculationResults.totalPay + abtCost;
+        if (flexibleBudget <= 0 || initialFlexCosts <= 0) return suggestions;
+
+        const scalingFactor = flexibleBudget / initialFlexCosts;
+
+        Object.entries(weeklyDays).forEach(([dayName, { selected, hours }]) => {
+            const currentHours = parseFloat(hours) || 0;
+            suggestions.suggestedHours[dayName] = { hours: selected ? currentHours * scalingFactor : 0 };
+        });
+
+        if (transport.abt.isEnabled) {
+            const currentAbtKm = parseFloat(transport.abt.km) || 0;
+            suggestions.suggestedAbtKm = currentAbtKm * scalingFactor;
         }
-        return newSuggested;
-    }, [budget, budgetMode, weeklyDays, calculationResults.totalPay]);
+
+        return suggestions;
+
+    }, [budget, budgetMode, calculationResults.totalPay, weeklyDays, transport.abt, nptCost, abtCost]);
     
     useEffect(() => { if (calculationResults.error) setError(calculationResults.error); else setError(''); }, [calculationResults.error]);
     
@@ -560,7 +831,23 @@ function App() {
         handleFocus,
     };
     const budgetHandlers = {
-        applySuggestedHours: () => { setWeeklyDays(p => { const u = { ...p }; for (const day in suggestedDailyHours) { if (u[day].selected) { u[day] = { ...u[day], hours: formatNumber(suggestedDailyHours[day].hours) }; } } return u; }); },
+        applySuggestedValues: () => {
+            setWeeklyDays(p => {
+                const updatedDays = { ...p };
+                for (const day in budgetSuggestions.suggestedHours) {
+                    if (updatedDays[day].selected) {
+                        updatedDays[day] = { ...updatedDays[day], hours: formatNumber(budgetSuggestions.suggestedHours[day].hours) };
+                    }
+                }
+                return updatedDays;
+            });
+            if (transport.abt.isEnabled && budgetSuggestions.suggestedAbtKm > 0) {
+                setTransport(prev => ({
+                    ...prev,
+                    abt: { ...prev.abt, km: formatNumber(budgetSuggestions.suggestedAbtKm) }
+                }));
+            }
+        },
         handleFocus
     };
     const handleNdisRateSelect = useCallback((rateType, item) => {
@@ -577,6 +864,18 @@ function App() {
             setRates(prev => ({ ...prev, ...newRates }));
         } else { setRates(prev => ({ ...prev, [rateType]: selectedInfo })); }
     }, [ndisRates]);
+
+    const handleTransportRateSelect = useCallback((type, item) => {
+        setTransport(prev => ({
+            ...prev,
+            [type]: {
+                ...prev[type],
+                name: item["Support Item Name"],
+                rate: (item.QLD || 0).toString(),
+                itemCode: item["Support Item Number"]
+            }
+        }));
+    }, []);
     
     const handleGenerateAgreement = () => {
         if (!serviceAgreementInfo.participantName || savedQuotes.length === 0) {
@@ -653,16 +952,26 @@ function App() {
                 { label: 'Saturday', hours: quote.results.saturdayHours, pay: quote.results.saturdayPay, rateInfo: quote.rates.saturday }, { label: 'Sunday', hours: quote.results.sundayHours, pay: quote.results.sundayPay, rateInfo: quote.rates.sunday },
                 { label: 'Public Holiday', hours: quote.results.publicHolidayHours, pay: quote.results.publicHolidayPay, rateInfo: quote.rates.publicHoliday },
             ].filter(d => d.hours > 0 && d.rateInfo);
-            return `<div class="quote-section"><h4>Quote: ${quote.description}</h4><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Hours</th><th>Total</th></tr></thead><tbody>${quoteDetails.map(d => `<tr><td>${d.label}</td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('')}</tbody></table></div>`;
+            
+            let tableRowsHtml = quoteDetails.map(d => `<tr><td><p>${d.label}</p><p style="font-size: 0.8em; color: #555; font-weight: normal;">${quote.fromDate} to ${quote.toDate}</p></td><td><p>${d.rateInfo.name || 'N/A'}</p><p style="font-size: 0.8em; color: #555;">${d.rateInfo.number || 'Manual Rate'}</p></td><td class="text-right">$${formatNumber(parseFloat(d.rateInfo.rate))}</td><td class="text-right">${formatNumber(d.hours)}</td><td class="text-right">$${formatNumber(d.pay)}</td></tr>`).join('');
+            
+            if (quote.transport && quote.transport.npt) {
+                tableRowsHtml += `<tr style="background-color: #FFF3E0;"><td ><p>Transport (NPT)</p><p style="font-size: 0.8em; color: #555; font-weight: normal;">${quote.fromDate} to ${quote.toDate}</p></td><td><p>${quote.transport.npt.name}</p><p style="font-size: 0.8em; color: #555;">${quote.transport.npt.itemCode || ''}</p></td><td class="text-right">$${formatNumber(parseFloat(quote.transport.npt.rate))} / km</td><td class="text-right">${quote.transport.npt.totalKm} km</td><td class="text-right">$${formatNumber(quote.transport.npt.cost)}</td></tr>`;
+            }
+            if (quote.transport && quote.transport.abt) {
+                tableRowsHtml += `<tr style="background-color: #FFF9C4;"><td ><p>Transport (ABT)</p><p style="font-size: 0.8em; color: #555; font-weight: normal;">${quote.fromDate} to ${quote.toDate}</p></td><td><p>${quote.transport.abt.name}</p><p style="font-size: 0.8em; color: #555;">${quote.transport.abt.itemCode || ''}</p></td><td class="text-right">$${formatNumber(parseFloat(quote.transport.abt.rate))} / km</td><td class="text-right">${quote.transport.abt.totalKm} km</td><td class="text-right">$${formatNumber(quote.transport.abt.cost)}</td></tr>`;
+            }
+
+            return `<div class="quote-section"><h4>Quote: ${quote.description}</h4><table><thead><tr><th>Service</th><th>Item Name & Number</th><th>Rate</th><th>Qty / Hours</th><th>Total</th></tr></thead><tbody>${tableRowsHtml}</tbody><tfoot><tr style="font-weight: bold;"><td colspan="3" class="text-right">Sub-total:</td><td class="text-right">${formatNumber(quote.totalHours)} hrs</td><td class="text-right">$${formatNumber(quote.totalPay)}</td></tr></tfoot></table></div>`;
         }).join('');
         
         const grandTotalSummaryHtml = `
             <table class="grand-total-summary" style="margin-top: 2rem;">
-                <tfoot>
-                    <tr style="background-color: #f2f2f2;">
-                        <td colspan="3" class="text-right"><strong>Total Budget</strong></td>
-                        <td class="text-right"><strong>${formatNumber(totalAgreementHours)} hrs</strong></td>
-                        <td class="text-right"><strong>$${formatNumber(totalAgreementPay)}</strong></td>
+                <tfoot style="font-weight: bold; background-color: #f2f2f2;">
+                    <tr>
+                        <td colspan="3" class="text-right">Total Agreement Budget</td>
+                        <td class="text-right">${formatNumber(totalAgreementHours)} hrs</td>
+                        <td class="text-right">$${formatNumber(totalAgreementPay)}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -705,6 +1014,7 @@ function App() {
             body { 
                 font-family: sans-serif;
                 margin: 0;
+                color: #333;
             }
             .page-container {
                 display: flex;
@@ -717,18 +1027,17 @@ function App() {
             }
             .content-body {
                 flex-grow: 1;
-                padding-left: 1in;
-                padding-right: 1in;
-                padding-top: 1em;
-                padding-bottom: 1em;
+                padding: 1em 1in 1em 1in;
             }
             .header-img, .footer-img {
                 width: 100%;
                 display: block;
             }
             h1,h2,h3,h4{color:#333}
+            h1 { page-break-before: always; }
+            h1:first-of-type { page-break-before: auto; }
             table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}
-            th,td{border:1px solid #ccc;padding:8px;text-align:left}
+            th,td{border:1px solid #ccc;padding:8px;text-align:left;word-break: break-word;}
             th{background-color:#f2f2f2}
             .text-right{text-align:right}
             .quote-section{margin-bottom:2rem;break-inside:avoid}
@@ -744,7 +1053,7 @@ function App() {
                 </div>
                 <div class="footer"><img src="${FOOTER_IMAGE_URL}" alt="Footer" class="footer-img"></div>
             </div>
-        </body></html>`
+        </body></html>`;
         
         const newWindow = window.open('', '_blank');
         newWindow.document.write(finalHtml);
@@ -753,38 +1062,132 @@ function App() {
 
     const printHandlers = {
         handlePrintAll: () => window.print(),
-        handlePrintOne: (quoteRef) => { const p = quoteRef.current.innerHTML; const o = document.body.innerHTML; document.body.innerHTML = p; window.print(); document.body.innerHTML = o; window.location.reload(); }
+        handlePrintOne: (quoteRef) => { 
+            const printContent = quoteRef.current.innerHTML;
+            const originalContent = document.body.innerHTML;
+            const printStyles = `<style>
+                body { margin: 1.5rem; }
+                table { width:100%; border-collapse:collapse; }
+                th, td { border:1px solid #ccc; padding:8px; text-align:left; }
+                th { background-color:#f2f2f2; }
+                .text-right { text-align:right; }
+                .no-print { display: none; }
+            </style>`;
+            document.body.innerHTML = printStyles + printContent;
+            window.print();
+            document.body.innerHTML = originalContent;
+            window.location.reload(); // Reload to re-attach React listeners
+        }
     };
     
     const quoteHandlers = {
         ...printHandlers,
         handleAddQuote: ({ rates, results }) => {
             if (!quoteDescription.trim()) { setError('Please enter a description for the quote.'); return; }
-            const newQuote = { id: crypto.randomUUID(), description: quoteDescription.trim(), totalPay: results.totalPay, totalHours: results.totalHours, rates, results };
-            setSavedQuotes(p => [...p, newQuote]); setQuoteDescription(''); setError('');
+            
+            const days = calculationResults.calculatedTotalDays || 0;
+            
+            const nptCostVal = nptCost;
+            const abtCostVal = abtCost;
+            
+            const transportData = {
+                npt: transport.npt.isEnabled && nptCostVal > 0 ? {
+                    cost: nptCostVal,
+                    totalKm: (parseFloat(transport.npt.km) || 0) * days,
+                    kmPerTrip: transport.npt.km,
+                    rate: transport.npt.rate,
+                    itemCode: transport.npt.itemCode,
+                    name: transport.npt.name
+                } : null,
+                abt: transport.abt.isEnabled && abtCostVal > 0 ? {
+                    cost: abtCostVal,
+                    totalKm: (parseFloat(transport.abt.km) || 0) * days,
+                    kmPerTrip: transport.abt.km,
+                    rate: transport.abt.rate,
+                    itemCode: transport.abt.itemCode,
+                    name: transport.abt.name
+                } : null,
+            };
+
+            const grandTotalPay = results.totalPay + nptCostVal + abtCostVal;
+
+            const newQuote = { 
+                id: crypto.randomUUID(), 
+                description: quoteDescription.trim(), 
+                totalPay: grandTotalPay, 
+                totalHours: results.totalHours, 
+                rates, 
+                results,
+                transport: transportData,
+                fromDate: fromDate,
+                toDate: toDate
+            };
+
+            setSavedQuotes(p => [...p, newQuote]); 
+            setQuoteDescription('');
+            setTransport({
+                npt: { isEnabled: false, km: '', rate: '1.00', itemCode: '', name: '' },
+                abt: { isEnabled: false, km: '', rate: '1.00', itemCode: '', name: '' }
+            });
+            setError('');
         },
         handleDeleteQuote: (id) => setSavedQuotes(p => p.filter(q => q.id !== id)),
     };
     
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8 font-sans antialiased text-gray-800">
-            <style>{`@media print { body{margin:1.5rem} .no-print{display:none!important} .printable-area{display:block!important;page-break-inside:avoid;box-shadow:none!important;border:1px solid #ccc!important} main{box-shadow:none!important} }`}</style>
-            <FloatingNav totalPay={calculationResults.totalPay} totalHours={calculationResults.totalHours} />
+            <style>{`
+                @media print { 
+                    body { margin: 1.5rem; }
+                    .no-print { display: none !important; }
+                    .printable-area { display: block !important; page-break-inside: avoid; box-shadow: none !important; border: 1px solid #ccc !important; }
+                    main { box-shadow: none !important; }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.5s ease-in-out;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
+            <FloatingNav totalPay={calculationResults.totalPay} totalHours={calculationResults.totalHours} transportCost={totalTransportCost} />
             <main className="max-w-4xl w-full mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-8 space-y-6">
-                <div className="text-center no-print"><h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-700">NDIS Budget & SA Generator</h1><p className="mt-2 text-gray-600">A tool for NDIS planning and quoting.</p></div>
+                <div className="text-center no-print">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-indigo-700">NDIS Budget & SA Generator</h1>
+                    <p className="mt-2 text-gray-600">A tool for NDIS planning and quoting.</p>
+                </div>
                 {error && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Error: </strong><span className="ml-2">{error}</span></div>)}
                 {(rateError || agreementError) && (<div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md no-print"><strong>Data Loading Error: </strong><span className="ml-2">{rateError || agreementError}</span></div>)}
                 
                 <div className="space-y-6 no-print">
                     <DateRangeSection fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} recurringType={recurringType} setRecurringType={setRecurringType} />
-                    <ApplicableDaysSection weeklyDays={weeklyDays} handlers={dayHandlers} suggestedDailyHours={suggestedDailyHours}/>
+                    <BudgetSection 
+                        budget={budget} 
+                        setBudget={setBudget} 
+                        budgetMode={budgetMode} 
+                        setBudgetMode={setBudgetMode} 
+                        calculationResults={calculationResults} 
+                        handlers={budgetHandlers} 
+                        totalProjectedCost={calculationResults.totalPay + totalTransportCost}
+                    />
+                    <ApplicableDaysSection weeklyDays={weeklyDays} handlers={dayHandlers} suggestedDailyHours={budgetSuggestions.suggestedHours}/>
                     <NdisRateFinderSection rates={rates} ndisRates={ndisRates} isLoading={isLoadingRates} handleNdisRateSelect={handleNdisRateSelect} />
+                    <TransportSection 
+                        transport={transport}
+                        setTransport={setTransport}
+                        calculatedDays={calculationResults.calculatedTotalDays}
+                        suggestedAbtKm={budgetSuggestions.suggestedAbtKm}
+                        ndisRates={ndisRates}
+                        isLoadingRates={isLoadingRates}
+                        onRateSelect={handleTransportRateSelect}
+                    />
                     <ManualRatesSection rates={rates} handlers={rateHandlers} />
-                    <BudgetSection budget={budget} setBudget={setBudget} budgetMode={budgetMode} setBudgetMode={setBudgetMode} calculationResults={calculationResults} handlers={budgetHandlers} />
                     <PublicHolidaysSection includePublicHolidays={includePublicHolidays} setIncludePublicHolidays={setIncludePublicHolidays} publicHolidaysInput={publicHolidaysInput} setPublicHolidaysInput={setPublicHolidaysInput} />
                 </div>
                 
-                <ResultsSection results={calculationResults} />
+                <ResultsSection results={calculationResults} transportCost={totalTransportCost}/>
+                                
                 <PeriodBreakdownSection results={calculationResults} />
                 <SavedQuotesSection savedQuotes={savedQuotes} handlers={quoteHandlers} quoteDescription={quoteDescription} setQuoteDescription={setQuoteDescription} rates={rates} results={calculationResults} />
                 <div className="no-print"><ServiceAgreementSection info={serviceAgreementInfo} setInfo={setServiceAgreementInfo} onGenerate={handleGenerateAgreement} isLoading={isLoadingAgreement} /></div>

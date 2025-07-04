@@ -107,3 +107,9 @@ The application provides a detailed breakdown of the forecasted hours and pay:
 * **Total Projected Pay:** The total pay you are forecasted to earn, with a corresponding breakdown by day type.
 * **Period Breakdown:** A detailed count of the different types of days within your selected forecast period, including total counted days, weekdays, weekends, public holidays, and the number of full weeks, fortnights, and months.
 * **Calculation Details:** An explanation of how the different values are calculated to provide clarity on the forecasting logic.
+
+# Log
+
+## Latest working branch
+c43fdd65a50a85936f4027016f0b869dbb3d7c78
+added proposed transport
